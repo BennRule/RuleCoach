@@ -224,10 +224,10 @@ function getDefaultProgramme() {
     {
       name: 'Upper C',
       day: 'Saturday',
-      subtitle: 'PT Session — Power/Variation + Arms',
+      subtitle: 'Power/Variation + Arms',
       defaultRest: 150,
       exercises: [
-        { name: 'Barbell Bench Press', notes: 'Heavier/lower rep with PT spotting', defaultRest: 210,
+        { name: 'Barbell Bench Press', notes: 'Heavier/lower rep variation', defaultRest: 210,
           sets: [
             { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
             { targetReps: 6, targetWeight: 77.5, repRange: '4-6' }
@@ -293,6 +293,17 @@ App.init = function() {
   // Seed programme if not exists
   if (!Store.get('ironcoach_programme')) {
     Store.set('ironcoach_programme', getDefaultProgramme());
+  }
+  // Migrate: remove PT Session label from Upper C
+  const _prog = Store.get('ironcoach_programme');
+  if (_prog) {
+    const _uc = _prog.find(w => w.name === 'Upper C');
+    if (_uc && _uc.subtitle.includes('PT Session')) {
+      _uc.subtitle = 'Power/Variation + Arms';
+      const _bench = _uc.exercises.find(e => e.name === 'Barbell Bench Press');
+      if (_bench && _bench.notes.includes('PT')) _bench.notes = 'Heavier/lower rep variation';
+      Store.set('ironcoach_programme', _prog);
+    }
   }
   if (!Store.get('ironcoach_sessions')) {
     Store.set('ironcoach_sessions', []);
