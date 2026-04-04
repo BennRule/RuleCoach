@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ironcoach-v3';
+const CACHE_NAME = 'rulecoach-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -38,12 +38,24 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Cache-first for everything else
-  e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(resp => {
-      const clone = resp.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-      return resp;
-    }))
-  );
+  // Network-first for own static assets, cache-first for everything else
+  const isOwnAsset = url.pathname.endsWith('.html') || url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') || url.pathname.endsWith('.json') || url.pathname.endsWith('/');
+  if (isOwnAsset) {
+    e.respondWith(
+      fetch(e.request).then(resp => {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return resp;
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then(cached => cached || fetch(e.request).then(resp => {
+        const clone = resp.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        return resp;
+      }))
+    );
+  }
 });

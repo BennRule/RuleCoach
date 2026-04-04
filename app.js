@@ -1,10 +1,10 @@
 /* ============================================================
-   IronCoach — Personal Training Tracker PWA
+   Rule Coach — Personal Training Tracker PWA
    ============================================================ */
 
 // ---- Service Worker Registration ----
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
 }
 
 // ---- Offline detection ----
@@ -47,7 +47,7 @@ function getDefaultProgramme() {
       exercises: [
         { name: 'Barbell Bench Press', notes: 'Control the descent, pause 1 sec at chest.', defaultRest: 180,
           sets: [
-            { targetReps: 3, targetWeight: 72.5, repRange: '3' },
+            { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 72.5, repRange: '6-8' }
           ]},
@@ -58,6 +58,7 @@ function getDefaultProgramme() {
           ]},
         { name: 'Chest Supported Dumbbell Row', notes: 'Drive elbows up, squeeze shoulder blades. Per hand.', defaultRest: 150,
           sets: [
+            { targetReps: 8, targetWeight: 35, repRange: '6-8' },
             { targetReps: 8, targetWeight: 35, repRange: '6-8' },
             { targetReps: 8, targetWeight: 35, repRange: '6-8' }
           ]},
@@ -100,10 +101,12 @@ function getDefaultProgramme() {
         { name: 'Leg Press', notes: '', defaultRest: 180,
           sets: [
             { targetReps: 8, targetWeight: 200, repRange: '6-8' },
+            { targetReps: 12, targetWeight: 170, repRange: '8-12' },
             { targetReps: 12, targetWeight: 170, repRange: '8-12' }
           ]},
         { name: 'Machine Hip Thrust', notes: 'Full hip extension at top, squeeze glutes.', defaultRest: 150,
           sets: [
+            { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 102.5, repRange: '6-8' }
           ]},
@@ -137,12 +140,14 @@ function getDefaultProgramme() {
         { name: 'Incline Chest Press Machine (plate loaded)', notes: '', defaultRest: 150,
           sets: [
             { targetReps: 8, targetWeight: 40, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' }
+            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
+            { targetReps: 8, targetWeight: 40, repRange: '6-8' }
           ]},
         { name: 'Plate Loaded Lat Pulldown', notes: 'Mid/Top position', defaultRest: 150,
           sets: [
             { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' },
-            { targetReps: 12, targetWeight: 50, repRange: '8-12', note: '50kg mid / 20kg top' }
+            { targetReps: 12, targetWeight: 50, repRange: '8-12', note: '50kg mid / 20kg top' },
+            { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' }
           ]},
         { name: 'Standing Cable Fly', notes: '', defaultRest: 120,
           sets: [
@@ -151,6 +156,7 @@ function getDefaultProgramme() {
           ]},
         { name: 'Seated Row Machine (Pannatta)', notes: 'Chest supported, full stretch at extension.', defaultRest: 120,
           sets: [
+            { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
             { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
             { targetReps: 12, targetWeight: 37.5, repRange: '8-12' }
           ]},
@@ -174,6 +180,7 @@ function getDefaultProgramme() {
         { name: 'Cable Tricep Pushdown', notes: '', defaultRest: 90,
           sets: [
             { targetReps: 15, targetWeight: 50, repRange: '10-15' },
+            { targetReps: 15, targetWeight: 50, repRange: '10-15' },
             { targetReps: 15, targetWeight: 50, repRange: '10-15' }
           ]}
       ]
@@ -186,6 +193,7 @@ function getDefaultProgramme() {
       exercises: [
         { name: 'Laying Hamstring Curl', notes: '2 RIR, controlled descent.', defaultRest: 150,
           sets: [
+            { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
             { targetReps: 8, targetWeight: 62.5, repRange: '6-8' }
           ]},
@@ -224,11 +232,12 @@ function getDefaultProgramme() {
     {
       name: 'Upper C',
       day: 'Saturday',
-      subtitle: 'Power/Variation + Arms',
+      subtitle: 'Arms and Shoulder Volume',
       defaultRest: 150,
       exercises: [
         { name: 'Barbell Bench Press', notes: 'Heavier/lower rep variation', defaultRest: 210,
           sets: [
+            { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
             { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
             { targetReps: 6, targetWeight: 77.5, repRange: '4-6' }
           ]},
@@ -255,6 +264,7 @@ function getDefaultProgramme() {
           ]},
         { name: 'Overhead Tricep Extension', notes: 'Cable or dumbbell', defaultRest: 90,
           sets: [
+            { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
             { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
             { targetReps: 15, targetWeight: 22.5, repRange: '10-15' }
           ]},
@@ -291,35 +301,45 @@ const App = {
 // ---- Init ----
 App.init = function() {
   // Seed programme if not exists
-  if (!Store.get('ironcoach_programme')) {
-    Store.set('ironcoach_programme', getDefaultProgramme());
+  if (!Store.get('rulecoach_programme')) {
+    Store.set('rulecoach_programme', getDefaultProgramme());
   }
   // Migrate: remove PT Session label from Upper C
-  const _prog = Store.get('ironcoach_programme');
+  const _prog = Store.get('rulecoach_programme');
   if (_prog) {
     const _uc = _prog.find(w => w.name === 'Upper C');
     if (_uc && _uc.subtitle.includes('PT Session')) {
-      _uc.subtitle = 'Power/Variation + Arms';
+      _uc.subtitle = 'Arms and Shoulder Volume';
       const _bench = _uc.exercises.find(e => e.name === 'Barbell Bench Press');
       if (_bench && _bench.notes.includes('PT')) _bench.notes = 'Heavier/lower rep variation';
-      Store.set('ironcoach_programme', _prog);
+      Store.set('rulecoach_programme', _prog);
     }
   }
-  if (!Store.get('ironcoach_sessions')) {
-    Store.set('ironcoach_sessions', []);
+  // Migrate: update set counts if stored programme has old Upper A bench (3-rep warmup set)
+  if (_prog) {
+    const _ua = _prog.find(w => w.name === 'Upper A');
+    if (_ua) {
+      const _bench = _ua.exercises.find(e => e.name === 'Barbell Bench Press');
+      if (_bench && _bench.sets.length === 3 && _bench.sets[0].repRange === '3') {
+        Store.set('rulecoach_programme', getDefaultProgramme());
+      }
+    }
   }
-  if (!Store.get('ironcoach_settings')) {
-    Store.set('ironcoach_settings', { apiKey: '', units: 'kg', userName: '' });
+  if (!Store.get('rulecoach_sessions')) {
+    Store.set('rulecoach_sessions', []);
+  }
+  if (!Store.get('rulecoach_settings')) {
+    Store.set('rulecoach_settings', { apiKey: '', units: 'kg', userName: '' });
   }
 
   // Load settings into UI
-  const settings = Store.get('ironcoach_settings');
+  const settings = Store.get('rulecoach_settings');
   document.getElementById('settingName').value = settings.userName || '';
   document.getElementById('settingUnits').value = settings.units || 'kg';
   document.getElementById('settingApiKey').value = settings.apiKey || '';
 
   // Check for in-progress session
-  const saved = Store.get('ironcoach_active_session');
+  const saved = Store.get('rulecoach_active_session');
   if (saved) {
     App.activeSession = saved.session;
     App.workoutStartTime = saved.startTime;
@@ -348,7 +368,7 @@ App.today.getTodayWorkout = function() {
   const dow = new Date().getDay();
   const workoutName = SCHEDULE[dow];
   if (!workoutName) return null;
-  const programme = Store.get('ironcoach_programme') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   return programme.find(w => w.name === workoutName) || null;
 };
 
@@ -372,7 +392,7 @@ App.today.render = function() {
     return;
   }
 
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   const greeting = settings.userName ? `Hey ${settings.userName}` : 'Today';
 
   container.innerHTML = `
@@ -390,7 +410,7 @@ App.today.render = function() {
 };
 
 App.today.startAnyWorkout = function() {
-  const programme = Store.get('ironcoach_programme') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   let html = '<h2>Choose Workout</h2>';
   programme.forEach(w => {
     html += `<button class="btn btn-outline btn-block" style="margin-top:10px" onclick="App.today.startWorkout('${w.name}');App.modal.forceClose();">${w.name} — ${w.subtitle}</button>`;
@@ -399,7 +419,7 @@ App.today.startAnyWorkout = function() {
 };
 
 App.today.startWorkout = function(name) {
-  const programme = Store.get('ironcoach_programme') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   const template = programme.find(w => w.name === name);
   if (!template) return;
 
@@ -431,7 +451,7 @@ App.today.startWorkout = function(name) {
 };
 
 App.today.saveActive = function() {
-  Store.set('ironcoach_active_session', {
+  Store.set('rulecoach_active_session', {
     session: App.activeSession,
     startTime: App.workoutStartTime
   });
@@ -452,7 +472,7 @@ App.today.startElapsedTimer = function() {
 
 App.today.renderActiveSession = function(container) {
   const session = App.activeSession;
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   let html = `
@@ -518,20 +538,20 @@ App.today.renderActiveSession = function(container) {
           </div>
           <div class="set-inputs">
             <input type="number" id="setW${ei}_${si}" value="${s.actualWeight}" step="0.5" inputmode="decimal"
-              ${s.status ? 'disabled' : ''} onchange="App.today.updateSet(${ei},${si},'weight',this.value)">
+              onchange="App.today.updateSet(${ei},${si},'weight',this.value)">
             <span class="unit-label">${unit}</span>
             <span class="unit-label">x</span>
             <input type="number" id="setR${ei}_${si}" value="${s.actualReps}" step="1" inputmode="numeric"
-              ${s.status ? 'disabled' : ''} onchange="App.today.updateSet(${ei},${si},'reps',this.value)">
+              onchange="App.today.updateSet(${ei},${si},'reps',this.value)">
             <span class="unit-label">reps</span>
           </div>
           <div class="set-actions">
             <button class="set-btn set-btn-done ${s.status === 'done' ? 'active' : ''}"
-              onclick="App.today.markSet(${ei},${si},'done')" ${s.status ? 'disabled' : ''}>&#10003;</button>
+              onclick="App.today.markSet(${ei},${si},'done')">&#10003;</button>
             <button class="set-btn set-btn-fail ${s.status === 'failed' ? 'active' : ''}"
-              onclick="App.today.markSet(${ei},${si},'failed')" ${s.status ? 'disabled' : ''}>&#10007;</button>
+              onclick="App.today.markSet(${ei},${si},'failed')">&#10007;</button>
             <button class="set-btn set-btn-skip ${s.status === 'skipped' ? 'active' : ''}"
-              onclick="App.today.markSet(${ei},${si},'skipped')" ${s.status ? 'disabled' : ''}>S</button>
+              onclick="App.today.markSet(${ei},${si},'skipped')">S</button>
           </div>
         </div>`;
     });
@@ -603,14 +623,21 @@ App.today.markSet = function(ei, si, status) {
   if (wInput) s.actualWeight = parseFloat(wInput.value) || 0;
   if (rInput) s.actualReps = parseInt(rInput.value) || 0;
 
-  s.status = status;
+  const wasNull = s.status === null;
+
+  // Toggle: if tapping the same status, undo it
+  if (s.status === status) {
+    s.status = null;
+  } else {
+    s.status = status;
+  }
   App.today.saveActive();
 
   // Re-render the card area
   App.today.renderActiveSession(document.getElementById('todayContent'));
 
-  // Auto-start rest timer if set is done or failed
-  if (status === 'done' || status === 'failed') {
+  // Auto-start rest timer only when transitioning from null to done/failed
+  if (wasNull && (s.status === 'done' || s.status === 'failed')) {
     App.today.toggleRest(ei);
   }
 };
@@ -734,9 +761,9 @@ App.today.finishWorkout = function() {
   };
 
   // Save to sessions
-  const sessions = Store.get('ironcoach_sessions') || [];
+  const sessions = Store.get('rulecoach_sessions') || [];
   sessions.push(session);
-  Store.set('ironcoach_sessions', sessions);
+  Store.set('rulecoach_sessions', sessions);
 
   // Build summary
   const totalSets = session.exercises.reduce((a, e) => a + e.sets.length, 0);
@@ -762,7 +789,7 @@ App.today.finishWorkout = function() {
   // Clear active
   App.activeSession = null;
   App.workoutStartTime = null;
-  localStorage.removeItem('ironcoach_active_session');
+  localStorage.removeItem('rulecoach_active_session');
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   if (App.restTimer) { clearInterval(App.restTimer.interval); App.restTimer = null; }
   document.getElementById('finishFab').classList.remove('show');
@@ -775,14 +802,14 @@ App.history = {};
 
 App.history.render = function() {
   const container = document.getElementById('historyContent');
-  const sessions = (Store.get('ironcoach_sessions') || []).slice().reverse();
+  const sessions = (Store.get('rulecoach_sessions') || []).slice().reverse();
 
   if (sessions.length === 0) {
     container.innerHTML = '<div class="history-empty"><p>No sessions yet. Start your first workout!</p></div>';
     return;
   }
 
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   let html = '';
@@ -835,7 +862,7 @@ App.history.toggle = function(idx) {
 App.chart = {};
 
 App.chart.show = function(exerciseName) {
-  const sessions = Store.get('ironcoach_sessions') || [];
+  const sessions = Store.get('rulecoach_sessions') || [];
   const dataPoints = [];
 
   sessions.forEach(s => {
@@ -878,7 +905,7 @@ App.chart.show = function(exerciseName) {
   const weights = dataPoints.map(d => d.weight);
   const minW = Math.min(...weights) * 0.95;
   const maxW = Math.max(...weights) * 1.05;
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   // Axes
@@ -951,8 +978,8 @@ App.programme = {};
 
 App.programme.render = function() {
   const container = document.getElementById('programmeContent');
-  const programme = Store.get('ironcoach_programme') || [];
-  const settings = Store.get('ironcoach_settings') || {};
+  const programme = Store.get('rulecoach_programme') || [];
+  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   let html = '';
@@ -996,9 +1023,9 @@ App.programme.toggle = function(wi) {
 };
 
 App.programme.edit = function(wi) {
-  const programme = Store.get('ironcoach_programme') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   const w = programme[wi];
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   let html = `<h2>Edit ${w.name}</h2>`;
@@ -1033,7 +1060,7 @@ App.programme.edit = function(wi) {
 };
 
 App.programme.saveEdit = function(wi) {
-  const programme = Store.get('ironcoach_programme') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   const w = programme[wi];
 
   w.exercises.forEach((ex, exi) => {
@@ -1052,14 +1079,14 @@ App.programme.saveEdit = function(wi) {
     });
   });
 
-  Store.set('ironcoach_programme', programme);
+  Store.set('rulecoach_programme', programme);
   App.modal.forceClose();
   App.programme.render();
 };
 
 App.programme.reset = function() {
   if (confirm('Reset programme to defaults? This will overwrite your current programme.')) {
-    Store.set('ironcoach_programme', getDefaultProgramme());
+    Store.set('rulecoach_programme', getDefaultProgramme());
     App.programme.render();
   }
 };
@@ -1070,7 +1097,7 @@ App.ai = {};
 const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The user trains 5 days per week on an Upper/Lower/Upper split, focusing on progressive overload for muscle gain and strength. They use a mix of barbells, dumbbells, cables and machines. Give specific, actionable recommendations with exact weights in kg. Be direct and concise.`;
 
 App.ai.call = async function(userPrompt) {
-  const settings = Store.get('ironcoach_settings') || {};
+  const settings = Store.get('rulecoach_settings') || {};
   if (!settings.apiKey) {
     App.ai.showError('Please add your Anthropic API key in Settings first.');
     return null;
@@ -1123,7 +1150,7 @@ App.ai.showError = function(msg) {
 };
 
 App.ai.analyse = function() {
-  const sessions = Store.get('ironcoach_sessions') || [];
+  const sessions = Store.get('rulecoach_sessions') || [];
   if (sessions.length === 0) {
     App.ai.showError('No sessions recorded yet. Complete a workout first.');
     return;
@@ -1133,7 +1160,7 @@ App.ai.analyse = function() {
 };
 
 App.ai.overload = function() {
-  const sessions = Store.get('ironcoach_sessions') || [];
+  const sessions = Store.get('rulecoach_sessions') || [];
   if (sessions.length === 0) {
     App.ai.showError('No sessions recorded yet.');
     return;
@@ -1143,8 +1170,8 @@ App.ai.overload = function() {
 };
 
 App.ai.newBlock = function() {
-  const sessions = Store.get('ironcoach_sessions') || [];
-  const programme = Store.get('ironcoach_programme') || [];
+  const sessions = Store.get('rulecoach_sessions') || [];
+  const programme = Store.get('rulecoach_programme') || [];
   App.ai.call(`Design a fresh 4-week training block based on my training history and current programme. Keep the 5-day Upper/Lower/Upper split structure. Provide specific exercises, sets, reps, and weights in kg.\n\nCurrent programme:\n${JSON.stringify(programme, null, 2)}\n\nRecent sessions (last 20):\n${JSON.stringify(sessions.slice(-20), null, 2)}`);
 };
 
@@ -1157,7 +1184,7 @@ App.settings.save = function() {
     units: document.getElementById('settingUnits').value,
     apiKey: document.getElementById('settingApiKey').value.trim()
   };
-  Store.set('ironcoach_settings', settings);
+  Store.set('rulecoach_settings', settings);
 
   // Show a brief confirmation
   const btn = document.querySelector('#screen-settings .btn-primary');
@@ -1178,16 +1205,16 @@ App.data = {};
 
 App.data.exportData = function() {
   const data = {
-    programme: Store.get('ironcoach_programme'),
-    sessions: Store.get('ironcoach_sessions'),
-    settings: Store.get('ironcoach_settings'),
+    programme: Store.get('rulecoach_programme'),
+    sessions: Store.get('rulecoach_sessions'),
+    settings: Store.get('rulecoach_settings'),
     exportDate: new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ironcoach-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `rulecoach-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 };
@@ -1195,9 +1222,9 @@ App.data.exportData = function() {
 App.data.clearData = function() {
   if (confirm('This will permanently delete ALL your training data. Are you sure?')) {
     if (confirm('Really? This cannot be undone.')) {
-      localStorage.removeItem('ironcoach_programme');
-      localStorage.removeItem('ironcoach_sessions');
-      localStorage.removeItem('ironcoach_active_session');
+      localStorage.removeItem('rulecoach_programme');
+      localStorage.removeItem('rulecoach_sessions');
+      localStorage.removeItem('rulecoach_active_session');
       App.activeSession = null;
       App.init();
       App.nav('today');
