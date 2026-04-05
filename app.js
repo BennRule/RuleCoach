@@ -257,6 +257,194 @@ function getDefaultProgramme() {
   ];
 }
 
+function getBonnyProgramme() {
+  return [
+    {
+      name: 'Full Body 1', day: 'Monday', subtitle: 'Strength + Upper', defaultRest: 60,
+      exercises: [
+        { name: '5 Minute Treadmill Warmup', notes: 'Brisk walk to warm up.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '5min' }
+        ]},
+        { name: 'Seated Hip Abduction', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 27.5, repRange: '12-15' },
+          { targetReps: 12, targetWeight: 27.5, repRange: '12-15' },
+          { targetReps: 12, targetWeight: 27.5, repRange: '12-15' }
+        ]},
+        { name: 'Leg Press', notes: 'Per side', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 17.5, repRange: '8-10' }
+        ]},
+        { name: 'Seated Hamstring Curl', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 32, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 32, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 32, repRange: '8-12' }
+        ]},
+        { name: 'Chest Supported Machine Row', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' }
+        ]},
+        { name: 'Rear Fly Machine', notes: '', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' }
+        ]},
+        { name: 'Standing Bicep Curl on Cable Machine', notes: 'Superset with tricep extensions — as little rest as possible between the two.', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 15, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 15, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 15, repRange: '10-15' }
+        ]},
+        { name: 'Standing Cable Tricep Extension', notes: 'Superset with bicep curls.', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 20, repRange: '10-15' }
+        ]}
+      ]
+    },
+    {
+      name: 'Full Body 2', day: 'Wednesday', subtitle: 'Glute + Shoulder Focus', defaultRest: 60,
+      exercises: [
+        { name: '5 Minute Treadmill Warmup', notes: 'Brisk walk to warm up.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '5min' }
+        ]},
+        { name: 'Seated Hip Adduction', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 25, repRange: '12-15' },
+          { targetReps: 12, targetWeight: 25, repRange: '12-15' },
+          { targetReps: 12, targetWeight: 25, repRange: '12-15' }
+        ]},
+        { name: 'Machine Hip Thrust', notes: 'Per side', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 20, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-10' }
+        ]},
+        { name: 'Seated Knee Extension', notes: '', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 21, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 21, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 21, repRange: '8-12' }
+        ]},
+        { name: 'Neutral Grip Lat Pulldown', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 30, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 30, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 30, repRange: '10-15' }
+        ]},
+        { name: 'Neutral Grip Seated Dumbbell Shoulder Press', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 5, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 5, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 5, repRange: '10-15' }
+        ]},
+        { name: 'Dumbbell Lateral Raise', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 2.5, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 2.5, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 2.5, repRange: '10-15' }
+        ]}
+      ]
+    },
+    {
+      name: 'Full Body 3', day: 'Monday', subtitle: 'Posterior + Press', defaultRest: 60,
+      exercises: [
+        { name: '5 Minute Treadmill Warmup', notes: 'Brisk walk to warm up.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '5min' }
+        ]},
+        { name: 'Romanian Deadlift', notes: 'Per side (20kg total)', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 20, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-10' }
+        ]},
+        { name: 'Goblet Squat', notes: '12.5kg dumbbell', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 12.5, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 12.5, repRange: '8-10' }
+        ]},
+        { name: 'Glute Kickback Machine', notes: 'Per side', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 20, repRange: '8-12' }
+        ]},
+        { name: 'Seated Chest Press', notes: '', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 5, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 5, repRange: '8-12' }
+        ]},
+        { name: 'Cable Cross Body Lateral Raise', notes: 'Lowest weight setting', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 5, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 5, repRange: '8-12' }
+        ]},
+        { name: 'Cable Pallof Press', notes: 'Slower than the video! Per side.', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 10, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 10, repRange: '10-15' }
+        ]}
+      ]
+    },
+    {
+      name: 'Full Body 4', day: 'Wednesday', subtitle: 'Pull + Core', defaultRest: 60,
+      exercises: [
+        { name: '5 Minute Treadmill Warmup', notes: 'Brisk walk to warm up.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '5min' }
+        ]},
+        { name: 'Seated Hip Abduction', notes: '', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 35, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 35, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 35, repRange: '8-10' }
+        ]},
+        { name: 'Cable Pull Through', notes: '', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 30, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 30, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 30, repRange: '8-10' }
+        ]},
+        { name: 'Laying Hamstring Curl', notes: '', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 20, repRange: '8-12' }
+        ]},
+        { name: 'Single Arm Lat Pulldown Machine', notes: 'Per side', defaultRest: 60, sets: [
+          { targetReps: 10, targetWeight: 30, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 30, repRange: '8-12' }
+        ]},
+        { name: 'Machine Tricep Dip', notes: '', defaultRest: 60, sets: [
+          { targetReps: 12, targetWeight: 25, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 25, repRange: '10-15' }
+        ]},
+        { name: 'Table Top Crunch', notes: '', defaultRest: 60, sets: [
+          { targetReps: 18, targetWeight: 0, repRange: '15-20' },
+          { targetReps: 18, targetWeight: 0, repRange: '15-20' }
+        ]}
+      ]
+    },
+    {
+      name: 'Cardio', day: 'Sunday', subtitle: 'Conditioning', defaultRest: 30,
+      exercises: [
+        { name: '10 Minute Fast Walk', notes: '', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '10min' }
+        ]},
+        { name: 'Row (Intervals)', notes: '30 seconds work at 7/10 effort, 30 seconds complete rest. 6-10 rounds.', defaultRest: 30, sets: [
+          { targetReps: 8, targetWeight: 0, repRange: '6-10 rounds' }
+        ]},
+        { name: 'Bike Erg', notes: '2000m — record your time.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '2000m' }
+        ]},
+        { name: '10-20 Minute Walk', notes: 'Cool down.', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '10-20min' }
+        ]}
+      ]
+    }
+  ];
+}
+
+function getBonnyWeek() {
+  return Store.get('rulecoach_bonny_week') || 'A';
+}
+
+function getBonnyTodayWorkout() {
+  const dow = new Date().getDay();
+  const week = getBonnyWeek();
+  if (dow === 0) return 'Cardio';
+  if (dow === 1) return week === 'A' ? 'Full Body 1' : 'Full Body 3';
+  if (dow === 3) return week === 'A' ? 'Full Body 2' : 'Full Body 4';
+  return null;
+}
+
+function sessionsKey() {
+  const settings = Store.get('rulecoach_settings') || {};
+  return 'rulecoach_sessions_' + (settings.user || 'benn');
+}
+
 const SCHEDULE = {
   1: 'Upper A',   // Monday
   2: 'Lower A',   // Tuesday
@@ -300,7 +488,6 @@ App.init = function() {
 
   // Load settings into UI
   const settings = Store.get('rulecoach_settings');
-  document.getElementById('settingName').value = settings.userName || '';
   document.getElementById('settingUnits').value = settings.units || 'kg';
   document.getElementById('settingApiKey').value = settings.apiKey || '';
 
@@ -311,6 +498,12 @@ App.init = function() {
     App.workoutStartTime = saved.startTime;
     App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
   }
+
+  if (!settings.user) {
+    settings.user = 'benn';
+    Store.set('rulecoach_settings', settings);
+  }
+  App.settings.updateUserButtons();
 
   App.today.render();
   App.history.render();
@@ -333,6 +526,13 @@ App.nav = function(screen) {
 App.today = {};
 
 App.today.getTodayWorkout = function() {
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  if (user === 'bonny') {
+    const name = getBonnyTodayWorkout();
+    if (!name) return null;
+    return getBonnyProgramme().find(w => w.name === name) || null;
+  }
   const dow = new Date().getDay();
   const workoutName = SCHEDULE[dow];
   if (!workoutName) return null;
@@ -361,7 +561,8 @@ App.today.render = function() {
   }
 
   const settings = Store.get('rulecoach_settings') || {};
-  const greeting = settings.userName ? `Hey ${settings.userName}` : 'Today';
+  const user = settings.user || 'benn';
+  const greeting = `Hey ${user.charAt(0).toUpperCase() + user.slice(1)}`;
 
   container.innerHTML = `
     <h1 class="screen-title">${greeting}</h1>
@@ -378,7 +579,9 @@ App.today.render = function() {
 };
 
 App.today.startAnyWorkout = function() {
-  const programme = Store.get('rulecoach_programme') || [];
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
   let html = '<h2>Choose Workout</h2>';
   programme.forEach(w => {
     html += `<button class="btn btn-outline btn-block" style="margin-top:10px" onclick="App.today.startWorkout('${w.name}');App.modal.forceClose();">${w.name} — ${w.subtitle}</button>`;
@@ -395,7 +598,9 @@ App.today.getLastSessionData = function(workoutName) {
 };
 
 App.today.startWorkout = function(name) {
-  const programme = Store.get('rulecoach_programme') || [];
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
   const template = programme.find(w => w.name === name);
   if (!template) return;
 
@@ -801,9 +1006,17 @@ App.today.finishWorkout = function() {
   };
 
   // Save to sessions
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   sessions.push(session);
-  Store.set('rulecoach_sessions', sessions);
+  Store.set(sessionsKey(), sessions);
+
+  // Auto-flip Bonny's week after completing FB2 or FB4
+  const _settings = Store.get('rulecoach_settings') || {};
+  if (_settings.user === 'bonny') {
+    if (session.workoutName === 'Full Body 2' || session.workoutName === 'Full Body 4') {
+      Store.set('rulecoach_bonny_week', getBonnyWeek() === 'A' ? 'B' : 'A');
+    }
+  }
 
   // Auto-progression
   const progressionChanges = App.today.applyAutoProgression(session);
@@ -1003,7 +1216,7 @@ App.history = {};
 
 App.history.render = function() {
   const container = document.getElementById('historyContent');
-  const sessions = (Store.get('rulecoach_sessions') || []).slice().reverse();
+  const sessions = (Store.get(sessionsKey()) || []).slice().reverse();
 
   if (sessions.length === 0) {
     container.innerHTML = '<div class="history-empty"><p>No sessions yet. Start your first workout!</p></div>';
@@ -1290,8 +1503,9 @@ App.programme = {};
 
 App.programme.render = function() {
   const container = document.getElementById('programmeContent');
-  const programme = Store.get('rulecoach_programme') || [];
   const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
   const unit = settings.units || 'kg';
 
   let html = '';
@@ -1319,13 +1533,17 @@ App.programme.render = function() {
         </div>`;
     });
 
+    if (user !== 'bonny') {
+      html += `<button class="btn btn-outline btn-sm programme-edit-btn" onclick="App.programme.edit(${wi})">Edit</button>`;
+    }
     html += `
-        <button class="btn btn-outline btn-sm programme-edit-btn" onclick="App.programme.edit(${wi})">Edit</button>
       </div>
     </div>`;
   });
 
-  html += `<button class="btn btn-outline btn-block" style="margin-top:12px" onclick="App.programme.reset()">Reset to Default Programme</button>`;
+  if (user !== 'bonny') {
+    html += `<button class="btn btn-outline btn-block" style="margin-top:12px" onclick="App.programme.reset()">Reset to Default Programme</button>`;
+  }
 
   container.innerHTML = html;
 };
@@ -1462,7 +1680,7 @@ App.ai.showError = function(msg) {
 };
 
 App.ai.analyse = function() {
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   if (sessions.length === 0) {
     App.ai.showError('No sessions recorded yet. Complete a workout first.');
     return;
@@ -1472,7 +1690,7 @@ App.ai.analyse = function() {
 };
 
 App.ai.overload = function() {
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   if (sessions.length === 0) {
     App.ai.showError('No sessions recorded yet.');
     return;
@@ -1482,7 +1700,7 @@ App.ai.overload = function() {
 };
 
 App.ai.newBlock = function() {
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   const programme = Store.get('rulecoach_programme') || [];
   App.ai.call(`Design a fresh 4-week training block based on my training history and current programme. Keep the 5-day Upper/Lower/Upper split structure. Provide specific exercises, sets, reps, and weights in kg.\n\nCurrent programme:\n${JSON.stringify(programme, null, 2)}\n\nRecent sessions (last 20):\n${JSON.stringify(sessions.slice(-20), null, 2)}`);
 };
@@ -1491,25 +1709,56 @@ App.ai.newBlock = function() {
 App.settings = {};
 
 App.settings.save = function() {
+  const existing = Store.get('rulecoach_settings') || {};
   const settings = {
-    userName: document.getElementById('settingName').value.trim(),
+    user: existing.user || 'benn',
     units: document.getElementById('settingUnits').value,
     apiKey: document.getElementById('settingApiKey').value.trim()
   };
   Store.set('rulecoach_settings', settings);
-
-  // Show a brief confirmation
   const btn = document.querySelector('#screen-settings .btn-primary');
   const orig = btn.textContent;
   btn.textContent = 'Saved!';
   btn.style.background = '#22c55e';
-  setTimeout(() => {
-    btn.textContent = orig;
-    btn.style.background = '';
-  }, 1500);
+  setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1500);
+  App.today.render();
+};
 
-  // Re-render today in case name changed
-  if (App.currentScreen === 'settings') App.today.render();
+App.settings.setUser = function(user) {
+  const settings = Store.get('rulecoach_settings') || {};
+  settings.user = user;
+  Store.set('rulecoach_settings', settings);
+  App.settings.updateUserButtons();
+  App.today.render();
+  App.history.render();
+  App.programme.render();
+};
+
+App.settings.updateUserButtons = function() {
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const bennBtn = document.getElementById('profileBenn');
+  const bonnyBtn = document.getElementById('profileBonny');
+  if (bennBtn) bennBtn.className = user === 'benn' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+  if (bonnyBtn) bonnyBtn.className = user === 'bonny' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+  const toggle = document.getElementById('bonnyWeekToggle');
+  if (toggle) toggle.style.display = user === 'bonny' ? 'block' : 'none';
+  App.settings.updateBonnyWeekButtons();
+};
+
+App.settings.setBonnyWeek = function(week) {
+  Store.set('rulecoach_bonny_week', week);
+  App.settings.updateBonnyWeekButtons();
+  App.today.render();
+};
+
+App.settings.updateBonnyWeekButtons = function() {
+  const week = getBonnyWeek();
+  const btnA = document.getElementById('bonnyWeekA');
+  const btnB = document.getElementById('bonnyWeekB');
+  if (!btnA || !btnB) return;
+  btnA.className = week === 'A' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+  btnB.className = week === 'B' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
 };
 
 // ---- DATA IMPORT/EXPORT ----
@@ -1541,7 +1790,8 @@ App.bodyweight.render = function() {
 App.data.exportData = function() {
   const data = {
     programme: Store.get('rulecoach_programme'),
-    sessions: Store.get('rulecoach_sessions'),
+    sessions_benn: Store.get('rulecoach_sessions_benn'),
+    sessions_bonny: Store.get('rulecoach_sessions_bonny'),
     settings: Store.get('rulecoach_settings'),
     bodyweight: Store.get('rulecoach_bodyweight'),
     exportDate: new Date().toISOString()
@@ -1559,7 +1809,9 @@ App.data.clearData = function() {
   if (confirm('This will permanently delete ALL your training data. Are you sure?')) {
     if (confirm('Really? This cannot be undone.')) {
       localStorage.removeItem('rulecoach_programme');
-      localStorage.removeItem('rulecoach_sessions');
+      localStorage.removeItem('rulecoach_sessions_benn');
+      localStorage.removeItem('rulecoach_sessions_bonny');
+      localStorage.removeItem('rulecoach_bonny_week');
       localStorage.removeItem('rulecoach_active_session');
       localStorage.removeItem('rulecoach_bodyweight');
       App.activeSession = null;

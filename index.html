@@ -61,10 +61,20 @@
       <div class="settings-section">
         <h3>Profile</h3>
         <div class="form-group">
-          <label>Your Name</label>
-          <input type="text" id="settingName" placeholder="Enter your name">
+          <label>Who's training?</label>
+          <div style="display:flex;gap:10px;margin-top:6px;">
+            <button id="profileBenn" class="btn btn-primary btn-block" style="flex:1;" onclick="App.settings.setUser('benn')">Benn</button>
+            <button id="profileBonny" class="btn btn-outline btn-block" style="flex:1;" onclick="App.settings.setUser('bonny')">Bonny</button>
+          </div>
         </div>
-        <div class="form-group">
+        <div id="bonnyWeekToggle" style="display:none;margin-top:12px;">
+          <label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:6px;">Bonny's current week</label>
+          <div style="display:flex;gap:10px;">
+            <button id="bonnyWeekA" class="btn btn-primary btn-block" style="flex:1;" onclick="App.settings.setBonnyWeek('A')">Week A (FB 1+2)</button>
+            <button id="bonnyWeekB" class="btn btn-outline btn-block" style="flex:1;" onclick="App.settings.setBonnyWeek('B')">Week B (FB 3+4)</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px;">
           <label>Units</label>
           <select id="settingUnits">
             <option value="kg">Kilograms (kg)</option>
