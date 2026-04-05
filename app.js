@@ -1282,7 +1282,7 @@ const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The 
 App.ai.call = async function(userPrompt) {
   const settings = Store.get('rulecoach_settings') || {};
   if (!settings.apiKey) {
-    App.ai.showError('Please add your Gemini API key in Settings first. Get one free at aistudio.google.com/apikey');
+    App.ai.showError('Please add your Groq API key in Settings first. Get one free at console.groq.com/keys');
     return null;
   }
 
@@ -1291,13 +1291,19 @@ App.ai.call = async function(userPrompt) {
   document.getElementById('aiError').classList.remove('show');
 
   try {
-    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${settings.apiKey}`, {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${settings.apiKey}`
+      },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
-        contents: [{ parts: [{ text: userPrompt }] }],
-        generationConfig: { maxOutputTokens: 2048 }
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: AI_SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt }
+        ]
       })
     });
 
@@ -1307,7 +1313,7 @@ App.ai.call = async function(userPrompt) {
     }
 
     const data = await resp.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
+    const text = data.choices?.[0]?.message?.content || 'No response received.';
 
     document.getElementById('aiLoading').classList.remove('show');
     document.getElementById('aiResponse').textContent = text;
