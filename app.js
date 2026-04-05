@@ -1281,7 +1281,7 @@ const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The 
 
 App.ai.call = async function(userPrompt) {
   const settings = Store.get('rulecoach_settings') || {};
-  const apiKey = settings.apiKey || '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';
+  const apiKey = settings.apiKey || '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';
 
 
   document.getElementById('aiLoading').classList.add('show');
