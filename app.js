@@ -1281,10 +1281,8 @@ const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The 
 
 App.ai.call = async function(userPrompt) {
   const settings = Store.get('rulecoach_settings') || {};
-  if (!settings.apiKey) {
-    App.ai.showError('Please add your OpenRouter API key in Settings first. Get one free at openrouter.ai/settings/keys');
-    return null;
-  }
+  const apiKey = settings.apiKey || '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';
+
 
   document.getElementById('aiLoading').classList.add('show');
   document.getElementById('aiResponse').classList.remove('show');
@@ -1295,7 +1293,7 @@ App.ai.call = async function(userPrompt) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${settings.apiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'https://bennrule.github.io/RuleCoach/',
         'X-Title': 'RuleCoach'
       },
