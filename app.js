@@ -525,8 +525,6 @@ App.today.renderActiveSession = function(container) {
           <div class="set-actions">
             <button class="set-btn set-btn-done ${s.status === 'done' ? 'active' : ''}"
               onclick="App.today.markSet(${ei},${si},'done')">&#10003;</button>
-            <button class="set-btn set-btn-fail ${s.status === 'failed' ? 'active' : ''}"
-              onclick="App.today.markSet(${ei},${si},'failed')">&#10007;</button>
             <button class="set-btn set-btn-skip ${s.status === 'skipped' ? 'active' : ''}"
               onclick="App.today.markSet(${ei},${si},'skipped')">S</button>
           </div>
@@ -742,13 +740,50 @@ App.today.finishWorkout = function() {
   sessions.push(session);
   Store.set('rulecoach_sessions', sessions);
 
+  // Auto-progression
+  const progressionChanges = App.today.applyAutoProgression(session);
+
   // Build summary
   const totalSets = session.exercises.reduce((a, e) => a + e.sets.length, 0);
   const doneSets = session.exercises.reduce((a, e) => a + e.sets.filter(s => s.status === 'done').length, 0);
-  const failedSets = session.exercises.reduce((a, e) => a + e.sets.filter(s => s.status === 'failed').length, 0);
+  const skippedSets = session.exercises.reduce((a, e) => a + e.sets.filter(s => s.status === 'skipped').length, 0);
   const totalVolume = session.exercises.reduce((a, e) =>
     a + e.sets.filter(s => s.status === 'done').reduce((b, s) => b + (s.actualWeight * s.actualReps), 0)
   , 0);
+
+  const settings = Store.get('rulecoach_settings') || {};
+  const unit = settings.units || 'kg';
+
+  let progressionHtml = '';
+  if (progressionChanges.length > 0) {
+    progressionHtml = '<div class="progression-summary"><h3>Next Session</h3>';
+    progressionChanges.forEach(c => {
+      let icon, cls, detail;
+      if (c.action === 'increase') {
+        icon = '&#9650;'; cls = 'prog-increase';
+        detail = `${c.from}${unit} → ${c.to}${unit}`;
+      } else if (c.action === 'decrease') {
+        icon = '&#9660;'; cls = 'prog-decrease';
+        detail = `${c.from}${unit} → ${c.to}${unit}`;
+      } else {
+        icon = '&#9679;'; cls = 'prog-hold';
+        detail = `${c.from}${unit} — hold`;
+      }
+      progressionHtml += `<div class="prog-item ${cls}">
+        <span class="prog-icon">${icon}</span>
+        <span class="prog-name">${c.exercise}</span>
+        <span class="prog-detail">${detail}</span>
+      </div>`;
+      if (c.plateau) {
+        progressionHtml += `<div class="prog-item prog-plateau">
+          <span class="prog-icon">&#9888;</span>
+          <span class="prog-name" style="font-size:11px;">Plateau: same weight for ${c.plateauCount} sessions</span>
+        </div>`;
+      }
+    });
+    progressionHtml += '<div class="prog-reason">' + progressionChanges.map(c => c.reason ? `${c.exercise}: ${c.reason}` : '').filter(Boolean).join('<br>') + '</div>';
+    progressionHtml += '</div>';
+  }
 
   const summaryHtml = `
     <h2>Workout Complete!</h2>
@@ -756,9 +791,10 @@ App.today.finishWorkout = function() {
       <div class="workout-complete-stat"><span class="stat-label">Workout</span><span class="stat-value">${session.workoutName}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Duration</span><span class="stat-value">${formatDuration(elapsed)}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Sets Completed</span><span class="stat-value">${doneSets}/${totalSets}</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Failed Sets</span><span class="stat-value">${failedSets}</span></div>
+      <div class="workout-complete-stat"><span class="stat-label">Skipped Sets</span><span class="stat-value">${skippedSets}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Total Volume</span><span class="stat-value">${Math.round(totalVolume).toLocaleString()} kg</span></div>
     </div>
+    ${progressionHtml}
     <button class="btn btn-primary btn-block" onclick="App.modal.forceClose()">Done</button>`;
 
   App.modal.open(summaryHtml);
@@ -772,6 +808,107 @@ App.today.finishWorkout = function() {
   document.getElementById('finishFab').classList.remove('show');
 
   App.today.render();
+};
+
+App.today.applyAutoProgression = function(completedSession) {
+  const programme = Store.get('rulecoach_programme') || [];
+  const allSessions = Store.get('rulecoach_sessions') || [];
+  const workout = programme.find(w => w.name === completedSession.workoutName);
+  if (!workout) return [];
+
+  // Get previous sessions for this workout (excluding the one just saved, which is the last)
+  const prevSessions = [];
+  for (let i = allSessions.length - 2; i >= 0; i--) {
+    if (allSessions[i].workoutName === completedSession.workoutName) {
+      prevSessions.push(allSessions[i]);
+      if (prevSessions.length >= 3) break;
+    }
+  }
+
+  const changes = [];
+  const settings = Store.get('rulecoach_settings') || {};
+  const unit = settings.units || 'kg';
+
+  completedSession.exercises.forEach(ex => {
+    const templateEx = workout.exercises.find(e => e.name === ex.name);
+    if (!templateEx) return;
+
+    // Skip exercises with 0 weight (e.g. "10 Minute Bike")
+    const mainWeight = templateEx.sets[0] ? templateEx.sets[0].targetWeight : 0;
+    if (mainWeight === 0) return;
+
+    const doneSets = ex.sets.filter(s => s.status === 'done');
+    const totalSets = ex.sets.length;
+    const attemptedSets = ex.sets.filter(s => s.status !== 'skipped' && s.status !== null);
+    // If all sets skipped (machine in use etc), skip progression entirely
+    if (doneSets.length === 0) return;
+    const allDone = doneSets.length === totalSets;
+    const allAttemptedDone = doneSets.length === attemptedSets.length && doneSets.length > 0;
+    const hitAllReps = allAttemptedDone &&
+      doneSets.every(s => s.actualReps >= s.targetReps);
+    const avgRepMiss = doneSets.length > 0
+      ? doneSets.reduce((sum, s) => sum + (s.targetReps - s.actualReps), 0) / doneSets.length
+      : 0;
+    const rpe = ex.rpe;
+    const rpeOk = !rpe || rpe <= 8;
+
+    // Check if weight increased in the most recent previous session (rate limiting)
+    const prevEx1 = prevSessions[0] ? prevSessions[0].exercises.find(pe => pe.name === ex.name) : null;
+    const prevEx2 = prevSessions[1] ? prevSessions[1].exercises.find(pe => pe.name === ex.name) : null;
+    const recentlyIncreased = prevEx1 && prevEx2 &&
+      prevEx1.sets[0] && prevEx2.sets[0] &&
+      prevEx1.sets[0].actualWeight > prevEx2.sets[0].actualWeight;
+
+    // Plateau detection: same weight for 3+ sessions
+    let plateauCount = 0;
+    if (prevSessions.length >= 2) {
+      const currentWeight = ex.sets[0] ? ex.sets[0].actualWeight : 0;
+      plateauCount = 1;
+      for (const ps of prevSessions) {
+        const pse = ps.exercises.find(pe => pe.name === ex.name);
+        if (pse && pse.sets[0] && pse.sets[0].actualWeight === currentWeight) {
+          plateauCount++;
+        } else break;
+      }
+    }
+
+    // Decision logic (skipped sets are ignored — machine may have been in use)
+    if (avgRepMiss >= 3) {
+      // DECREASE: reps well below target on completed sets
+      const oldWeight = mainWeight;
+      templateEx.sets.forEach(s => { s.targetWeight = Math.max(0, s.targetWeight - 2.5); });
+      changes.push({ exercise: ex.name, action: 'decrease', from: oldWeight, to: oldWeight - 2.5, reason: `Reps well below target (avg ${Math.round(avgRepMiss)} short)` });
+    } else if (hitAllReps && rpeOk && !recentlyIncreased) {
+      // INCREASE: all sets hit, RPE manageable, not back-to-back increase
+      const oldWeight = mainWeight;
+      templateEx.sets.forEach(s => { s.targetWeight += 2.5; });
+      let reason = 'All sets completed';
+      if (rpe) reason += `, RPE ${rpe}`;
+      changes.push({ exercise: ex.name, action: 'increase', from: oldWeight, to: oldWeight + 2.5, reason });
+    } else if (hitAllReps && rpeOk && recentlyIncreased) {
+      // HOLD: consolidating recent increase
+      changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Consolidating recent increase' });
+    } else if (hitAllReps && !rpeOk) {
+      // HOLD: RPE too high
+      changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: `RPE ${rpe} — near max effort` });
+    } else if (allDone && !hitAllReps) {
+      // HOLD: completed but missed some reps
+      changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Completed but below target reps' });
+    }
+
+    // Add plateau warning
+    if (plateauCount >= 3 && changes.length > 0) {
+      const last = changes[changes.length - 1];
+      if (last.exercise === ex.name) {
+        last.plateau = true;
+        last.plateauCount = plateauCount;
+      }
+    }
+  });
+
+  // Save updated programme
+  Store.set('rulecoach_programme', programme);
+  return changes;
 };
 
 App.today.cancelWorkout = function() {
