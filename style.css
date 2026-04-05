@@ -102,6 +102,13 @@ html, body {
 }
 .btn-sm { padding: 8px 12px; font-size: 13px; min-height: 40px; }
 .btn-block { width: 100%; }
+.btn-cancel-workout {
+  background: transparent; color: var(--text-dim); border: 1px solid var(--border);
+  border-radius: 8px; width: 36px; height: 36px; min-height: 36px; min-width: 36px;
+  padding: 0; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.btn-cancel-workout:active { color: var(--red); border-color: var(--red); }
 
 .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
 

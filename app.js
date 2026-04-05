@@ -40,240 +40,198 @@ const Store = {
 function getDefaultProgramme() {
   return [
     {
-      name: 'Upper A',
-      day: 'Monday',
-      subtitle: 'Strength Focus',
-      defaultRest: 180,
+      name: 'Upper A', day: 'Monday', subtitle: 'Strength Push/Pull', defaultRest: 180,
       exercises: [
-        { name: 'Barbell Bench Press', notes: 'Control the descent, pause 1 sec at chest.', defaultRest: 180,
-          sets: [
-            { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 72.5, repRange: '6-8' }
-          ]},
-        { name: 'Incline Dumbbell Press', notes: 'Per hand', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 30, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 30, repRange: '6-8' }
-          ]},
-        { name: 'Chest Supported Dumbbell Row', notes: 'Drive elbows up, squeeze shoulder blades. Per hand.', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 35, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 35, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 35, repRange: '6-8' }
-          ]},
-        { name: 'Seated Shoulder Press Machine (Gymleco)', notes: '', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 37.5, repRange: '6-8' }
-          ]},
-        { name: 'Cable Lateral Raise (cross body)', notes: '', defaultRest: 90,
-          sets: [
-            { targetReps: 10, targetWeight: 15, repRange: '8-10' },
-            { targetReps: 10, targetWeight: 15, repRange: '8-10' },
-            { targetReps: 15, targetWeight: 10, repRange: '10-15' }
-          ]},
-        { name: 'Rear Delt Row', notes: 'Use yoga block for ROM', defaultRest: 120,
-          sets: [
-            { targetReps: 12, targetWeight: 47.5, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 47.5, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 47.5, repRange: '8-12' }
-          ]},
-        { name: 'Cable Tricep Pushdown (straight bar)', notes: '', defaultRest: 90,
-          sets: [
-            { targetReps: 8, targetWeight: 65, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 65, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 50, repRange: '8-12' }
-          ]}
+        { name: 'Barbell Bench Press', notes: 'Control the descent, pause 1 sec at chest.', defaultRest: 180, sets: [
+          { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 72.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 72.5, repRange: '6-8' }
+        ]},
+        { name: 'Lat Pulldown', notes: 'Full stretch at top, drive elbows down. Moderate grip.', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 65, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 65, repRange: '6-8' },
+          { targetReps: 10, targetWeight: 57.5, repRange: '8-10' }
+        ]},
+        { name: 'Incline Dumbbell Press', notes: 'Per hand', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 30, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 30, repRange: '6-8' }
+        ]},
+        { name: 'Pec Deck / Fly Machine', notes: 'Full stretch at open, squeeze hard at close. Controlled return.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 60, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 60, repRange: '10-12' },
+          { targetReps: 15, targetWeight: 50, repRange: '12-15' }
+        ]},
+        { name: 'Chest Supported Dumbbell Row', notes: 'Drive elbows up, squeeze shoulder blades. Per hand.', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 35, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 35, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 35, repRange: '6-8' }
+        ]},
+        { name: 'Seated Shoulder Press Machine (Gymleco)', notes: '', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 37.5, repRange: '6-8' }
+        ]},
+        { name: 'Cable Lateral Raise (cross body)', notes: '', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 15, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 15, repRange: '8-10' },
+          { targetReps: 15, targetWeight: 10, repRange: '10-15' }
+        ]},
+        { name: 'Preacher Curl Machine', notes: 'Full extension at bottom, squeeze at top.', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 40, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 40, repRange: '8-12' }
+        ]},
+        { name: 'Cable Tricep Pushdown (straight bar)', notes: '', defaultRest: 90, sets: [
+          { targetReps: 8, targetWeight: 65, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 65, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 50, repRange: '8-12' }
+        ]}
       ]
     },
     {
-      name: 'Lower A',
-      day: 'Tuesday',
-      subtitle: 'Quad/Glute Dominant',
-      defaultRest: 150,
+      name: 'Lower A', day: 'Tuesday', subtitle: 'Quad/Glute Dominant', defaultRest: 150,
       exercises: [
-        { name: 'Seated Hip Abduction', notes: 'Warm-up set, full ROM, controlled.', defaultRest: 90,
-          sets: [
-            { targetReps: 12, targetWeight: 105, repRange: '10-12' },
-            { targetReps: 12, targetWeight: 105, repRange: '10-12' }
-          ]},
-        { name: 'Leg Press', notes: '', defaultRest: 180,
-          sets: [
-            { targetReps: 8, targetWeight: 200, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 170, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 170, repRange: '8-12' }
-          ]},
-        { name: 'Machine Hip Thrust', notes: 'Full hip extension at top, squeeze glutes.', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 102.5, repRange: '6-8' }
-          ]},
-        { name: 'Seated Knee Extension (tri-set)', notes: 'Bottom / Mid / Top positions', defaultRest: 120,
-          sets: [
-            { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' },
-            { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' }
-          ]},
-        { name: 'Romanian Deadlift', notes: 'Hinge at hips, bar close to body, flat back.', defaultRest: 180,
-          sets: [
-            { targetReps: 8, targetWeight: 107.5, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 100, repRange: '8-12' }
-          ]},
-        { name: 'Machine Crunch', notes: '', defaultRest: 60,
-          sets: [
-            { targetReps: 20, targetWeight: 97.5, repRange: '15-20' },
-            { targetReps: 20, targetWeight: 97.5, repRange: '15-20' }
-          ]},
-        { name: '10 Minute Bike', notes: 'Cool down, moderate pace', defaultRest: 0,
-          sets: [
-            { targetReps: 1, targetWeight: 0, repRange: '10min' }
-          ]}
+        { name: 'Seated Hip Abduction', notes: 'Warm-up set, full ROM, controlled.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 105, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 105, repRange: '10-12' }
+        ]},
+        { name: 'Leg Press', notes: '', defaultRest: 180, sets: [
+          { targetReps: 8, targetWeight: 200, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 170, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 170, repRange: '8-12' }
+        ]},
+        { name: 'Machine Hip Thrust', notes: 'Full hip extension at top, squeeze glutes.', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 102.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 102.5, repRange: '6-8' }
+        ]},
+        { name: 'Seated Knee Extension (tri-set)', notes: 'Bottom / Mid / Top positions', defaultRest: 120, sets: [
+          { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' },
+          { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' }
+        ]},
+        { name: 'Romanian Deadlift', notes: 'Hinge at hips, bar close to body, flat back.', defaultRest: 180, sets: [
+          { targetReps: 8, targetWeight: 107.5, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 100, repRange: '8-12' }
+        ]},
+        { name: 'Machine Crunch', notes: '', defaultRest: 60, sets: [
+          { targetReps: 20, targetWeight: 97.5, repRange: '15-20' },
+          { targetReps: 20, targetWeight: 97.5, repRange: '15-20' }
+        ]},
+        { name: '10 Minute Bike', notes: 'Cool down, moderate pace', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '10min' }
+        ]}
       ]
     },
     {
-      name: 'Upper B',
-      day: 'Thursday',
-      subtitle: 'Hypertrophy Volume Focus',
-      defaultRest: 150,
+      name: 'Upper B', day: 'Thursday', subtitle: 'Hypertrophy Volume', defaultRest: 150,
       exercises: [
-        { name: 'Incline Chest Press Machine (plate loaded)', notes: '', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 40, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
-            { targetReps: 8, targetWeight: 40, repRange: '6-8' }
-          ]},
-        { name: 'Plate Loaded Lat Pulldown', notes: 'Mid/Top position', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' },
-            { targetReps: 12, targetWeight: 50, repRange: '8-12', note: '50kg mid / 20kg top' },
-            { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' }
-          ]},
-        { name: 'Standing Cable Fly', notes: '', defaultRest: 120,
-          sets: [
-            { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' }
-          ]},
-        { name: 'Seated Row Machine (Pannatta)', notes: 'Chest supported, full stretch at extension.', defaultRest: 120,
-          sets: [
-            { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 37.5, repRange: '8-12' }
-          ]},
-        { name: 'Cable Cross Body Lateral Raise', notes: '', defaultRest: 90,
-          sets: [
-            { targetReps: 10, targetWeight: 15, repRange: '8-10' },
-            { targetReps: 10, targetWeight: 15, repRange: '8-10' },
-            { targetReps: 15, targetWeight: 10, repRange: '12-15' }
-          ]},
-        { name: 'Rear Delt Row', notes: '', defaultRest: 90,
-          sets: [
-            { targetReps: 12, targetWeight: 45, repRange: '10-12' },
-            { targetReps: 12, targetWeight: 45, repRange: '10-12' },
-            { targetReps: 12, targetWeight: 45, repRange: '10-12' }
-          ]},
-        { name: 'Dumbbell Hammer Curl', notes: 'Per hand', defaultRest: 90,
-          sets: [
-            { targetReps: 12, targetWeight: 20, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 20, repRange: '8-12' }
-          ]},
-        { name: 'Cable Tricep Pushdown', notes: '', defaultRest: 90,
-          sets: [
-            { targetReps: 15, targetWeight: 50, repRange: '10-15' },
-            { targetReps: 15, targetWeight: 50, repRange: '10-15' },
-            { targetReps: 15, targetWeight: 50, repRange: '10-15' }
-          ]}
+        { name: 'Incline Chest Press Machine (plate loaded)', notes: '', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 40, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
+          { targetReps: 8, targetWeight: 40, repRange: '6-8' }
+        ]},
+        { name: 'Plate Loaded Lat Pulldown', notes: 'Mid/Top position', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' },
+          { targetReps: 12, targetWeight: 50, repRange: '8-12', note: '50kg mid / 20kg top' },
+          { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' }
+        ]},
+        { name: 'Pec Deck / Fly Machine', notes: 'Higher rep pump set. Full ROM.', defaultRest: 90, sets: [
+          { targetReps: 15, targetWeight: 55, repRange: '12-15' },
+          { targetReps: 15, targetWeight: 55, repRange: '12-15' }
+        ]},
+        { name: 'Seated Row Machine (Pannatta)', notes: 'Chest supported, full stretch at extension.', defaultRest: 120, sets: [
+          { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 37.5, repRange: '8-12' }
+        ]},
+        { name: 'Lateral Raise Machine', notes: 'Full ROM, controlled return. No swinging.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 50, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 50, repRange: '10-12' },
+          { targetReps: 15, targetWeight: 40, repRange: '12-15' }
+        ]},
+        { name: 'Rear Delt Row', notes: 'Use yoga block for ROM', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 47.5, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 47.5, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 47.5, repRange: '8-12' }
+        ]},
+        { name: 'Dumbbell Hammer Curl', notes: 'Per hand', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 20, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 20, repRange: '8-12' }
+        ]},
+        { name: 'Cable Tricep Pushdown (rope)', notes: '', defaultRest: 90, sets: [
+          { targetReps: 15, targetWeight: 50, repRange: '10-15' },
+          { targetReps: 15, targetWeight: 50, repRange: '10-15' },
+          { targetReps: 15, targetWeight: 50, repRange: '10-15' }
+        ]}
       ]
     },
     {
-      name: 'Lower B',
-      day: 'Friday',
-      subtitle: 'Posterior Chain Focus',
-      defaultRest: 150,
+      name: 'Lower B', day: 'Friday', subtitle: 'Posterior Chain', defaultRest: 150,
       exercises: [
-        { name: 'Laying Hamstring Curl', notes: '2 RIR, controlled descent.', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 62.5, repRange: '6-8' }
-          ]},
-        { name: '45 Degree Hyper Extension', notes: 'Hamstring focus, dumbbell', defaultRest: 120,
-          sets: [
-            { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
-            { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
-            { targetReps: 15, targetWeight: 7.5, repRange: '10-15' }
-          ]},
-        { name: 'Romanian Deadlift', notes: 'Hinge at hips, bar close to body, flat back.', defaultRest: 180,
-          sets: [
-            { targetReps: 8, targetWeight: 107.5, repRange: '6-8' },
-            { targetReps: 12, targetWeight: 100, repRange: '8-12' }
-          ]},
-        { name: 'Machine Hip Thrust', notes: 'Higher rep version', defaultRest: 120,
-          sets: [
-            { targetReps: 12, targetWeight: 100, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 100, repRange: '8-12' }
-          ]},
-        { name: 'Seated Knee Extension (tri-set)', notes: 'Bottom / Mid / Top positions', defaultRest: 120,
-          sets: [
-            { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' },
-            { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' }
-          ]},
-        { name: 'Machine Crunch', notes: '', defaultRest: 60,
-          sets: [
-            { targetReps: 20, targetWeight: 95, repRange: '15-20' },
-            { targetReps: 20, targetWeight: 95, repRange: '15-20' }
-          ]},
-        { name: '10 Minute Bike', notes: 'Cool down, moderate pace', defaultRest: 0,
-          sets: [
-            { targetReps: 1, targetWeight: 0, repRange: '10min' }
-          ]}
+        { name: 'Laying Hamstring Curl', notes: '2 RIR, controlled descent.', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 62.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 62.5, repRange: '6-8' }
+        ]},
+        { name: '45 Degree Hyper Extension', notes: 'Hamstring focus, dumbbell', defaultRest: 120, sets: [
+          { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
+          { targetReps: 10, targetWeight: 17.5, repRange: '8-10' },
+          { targetReps: 15, targetWeight: 7.5, repRange: '10-15' }
+        ]},
+        { name: 'Romanian Deadlift', notes: 'Hinge at hips, bar close to body, flat back.', defaultRest: 180, sets: [
+          { targetReps: 8, targetWeight: 107.5, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 100, repRange: '8-12' }
+        ]},
+        { name: 'Machine Hip Thrust', notes: 'Higher rep version', defaultRest: 120, sets: [
+          { targetReps: 12, targetWeight: 100, repRange: '8-12' },
+          { targetReps: 12, targetWeight: 100, repRange: '8-12' }
+        ]},
+        { name: 'Leg Press (high foot placement)', notes: 'Feet high and wide, glute focus.', defaultRest: 120, sets: [
+          { targetReps: 15, targetWeight: 150, repRange: '12-15' },
+          { targetReps: 15, targetWeight: 150, repRange: '12-15' }
+        ]},
+        { name: 'Machine Crunch', notes: '', defaultRest: 60, sets: [
+          { targetReps: 20, targetWeight: 95, repRange: '15-20' },
+          { targetReps: 20, targetWeight: 95, repRange: '15-20' }
+        ]},
+        { name: '10 Minute Bike', notes: 'Cool down, moderate pace', defaultRest: 0, sets: [
+          { targetReps: 1, targetWeight: 0, repRange: '10min' }
+        ]}
       ]
     },
     {
-      name: 'Upper C',
-      day: 'Saturday',
-      subtitle: 'Arms and Shoulder Volume',
-      defaultRest: 150,
+      name: 'Upper C', day: 'Saturday', subtitle: 'Strength Upper + Arms', defaultRest: 150,
       exercises: [
-        { name: 'Barbell Bench Press', notes: 'Heavier/lower rep variation', defaultRest: 210,
-          sets: [
-            { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
-            { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
-            { targetReps: 6, targetWeight: 77.5, repRange: '4-6' }
-          ]},
-        { name: 'Chest Supported Dumbbell Row', notes: 'Heavy, per hand', defaultRest: 150,
-          sets: [
-            { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
-            { targetReps: 8, targetWeight: 37.5, repRange: '6-8' }
-          ]},
-        { name: 'Dumbbell Shoulder Press (standing)', notes: 'Functional variation, per hand', defaultRest: 150,
-          sets: [
-            { targetReps: 10, targetWeight: 22.5, repRange: '8-10' },
-            { targetReps: 10, targetWeight: 22.5, repRange: '8-10' }
-          ]},
-        { name: 'EZ Bar Bicep Curl', notes: 'Total bar weight', defaultRest: 90,
-          sets: [
-            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
-            { targetReps: 15, targetWeight: 25, repRange: '12-15' }
-          ]},
-        { name: 'Dumbbell Bicep Curl (supinating)', notes: 'Per hand', defaultRest: 90,
-          sets: [
-            { targetReps: 12, targetWeight: 20, repRange: '8-12' },
-            { targetReps: 12, targetWeight: 20, repRange: '8-12' }
-          ]},
-        { name: 'Overhead Tricep Extension', notes: 'Cable or dumbbell', defaultRest: 90,
-          sets: [
-            { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
-            { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
-            { targetReps: 15, targetWeight: 22.5, repRange: '10-15' }
-          ]},
-        { name: 'Cable Lateral Raise', notes: '', defaultRest: 60,
-          sets: [
-            { targetReps: 15, targetWeight: 12.5, repRange: '12-15' },
-            { targetReps: 15, targetWeight: 12.5, repRange: '12-15' },
-            { targetReps: 15, targetWeight: 10, repRange: '12-15' }
-          ]}
+        { name: 'Barbell Bench Press', notes: 'Heavier/lower rep strength focus.', defaultRest: 210, sets: [
+          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
+          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
+          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' }
+        ]},
+        { name: 'Chest Supported Dumbbell Row', notes: 'Heavy, per hand', defaultRest: 150, sets: [
+          { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
+          { targetReps: 8, targetWeight: 37.5, repRange: '6-8' }
+        ]},
+        { name: 'Lateral Raise Machine', notes: 'Full ROM, controlled return. No swinging.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 50, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 50, repRange: '10-12' },
+          { targetReps: 15, targetWeight: 40, repRange: '12-15' }
+        ]},
+        { name: 'EZ Bar Bicep Curl', notes: 'Total bar weight, controlled descent.', defaultRest: 90, sets: [
+          { targetReps: 10, targetWeight: 32.5, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 32.5, repRange: '8-12' },
+          { targetReps: 15, targetWeight: 25, repRange: '12-15' }
+        ]},
+        { name: 'Preacher Curl Machine', notes: 'Full extension at bottom, squeeze at top.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 40, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 40, repRange: '10-12' }
+        ]},
+        { name: 'Overhead Tricep Extension', notes: 'Cable or dumbbell', defaultRest: 90, sets: [
+          { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
+          { targetReps: 15, targetWeight: 22.5, repRange: '10-15' },
+          { targetReps: 15, targetWeight: 22.5, repRange: '10-15' }
+        ]},
+        { name: 'Cable Tricep Pushdown (straight bar)', notes: '', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 50, repRange: '10-15' },
+          { targetReps: 12, targetWeight: 50, repRange: '10-15' }
+        ]}
       ]
     }
   ];
@@ -304,25 +262,13 @@ App.init = function() {
   if (!Store.get('rulecoach_programme')) {
     Store.set('rulecoach_programme', getDefaultProgramme());
   }
-  // Migrate: remove PT Session label from Upper C
+  // Migrate: reset programme if missing new exercises
   const _prog = Store.get('rulecoach_programme');
   if (_prog) {
-    const _uc = _prog.find(w => w.name === 'Upper C');
-    if (_uc && _uc.subtitle.includes('PT Session')) {
-      _uc.subtitle = 'Arms and Shoulder Volume';
-      const _bench = _uc.exercises.find(e => e.name === 'Barbell Bench Press');
-      if (_bench && _bench.notes.includes('PT')) _bench.notes = 'Heavier/lower rep variation';
-      Store.set('rulecoach_programme', _prog);
-    }
-  }
-  // Migrate: update set counts if stored programme has old Upper A bench (3-rep warmup set)
-  if (_prog) {
     const _ua = _prog.find(w => w.name === 'Upper A');
-    if (_ua) {
-      const _bench = _ua.exercises.find(e => e.name === 'Barbell Bench Press');
-      if (_bench && _bench.sets.length === 3 && _bench.sets[0].repRange === '3') {
-        Store.set('rulecoach_programme', getDefaultProgramme());
-      }
+    const needsReset = !_ua || !_ua.exercises.find(e => e.name === 'Lat Pulldown') || !_ua.exercises.find(e => e.name === 'Pec Deck / Fly Machine');
+    if (needsReset) {
+      Store.set('rulecoach_programme', getDefaultProgramme());
     }
   }
   if (!Store.get('rulecoach_sessions')) {
@@ -481,7 +427,10 @@ App.today.renderActiveSession = function(container) {
         <h2>${session.workoutName}</h2>
         <div style="font-size:13px;color:var(--text-dim);">${formatDate(session.date)}</div>
       </div>
-      <div class="workout-timer-display" id="workoutElapsed">0:00</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="workout-timer-display" id="workoutElapsed">0:00</div>
+        <button class="btn btn-cancel-workout" onclick="App.today.cancelWorkout()" title="Cancel workout">&#10005;</button>
+      </div>
     </div>`;
 
   session.exercises.forEach((ex, ei) => {
@@ -794,6 +743,28 @@ App.today.finishWorkout = function() {
   if (App.restTimer) { clearInterval(App.restTimer.interval); App.restTimer = null; }
   document.getElementById('finishFab').classList.remove('show');
 
+  App.today.render();
+};
+
+App.today.cancelWorkout = function() {
+  App.modal.open(`
+    <h2>Cancel Workout?</h2>
+    <p style="color:var(--text-dim);margin:12px 0;">This will discard all progress from this session. This cannot be undone.</p>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-outline" style="flex:1" onclick="App.modal.forceClose()">Keep Going</button>
+      <button class="btn btn-danger btn-block" style="flex:1" onclick="App.today.confirmCancelWorkout()">Cancel Workout</button>
+    </div>
+  `);
+};
+
+App.today.confirmCancelWorkout = function() {
+  App.activeSession = null;
+  App.workoutStartTime = null;
+  localStorage.removeItem('rulecoach_active_session');
+  if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
+  if (App.restTimer) { clearInterval(App.restTimer.interval); App.restTimer = null; }
+  document.getElementById('finishFab').classList.remove('show');
+  App.modal.forceClose();
   App.today.render();
 };
 
