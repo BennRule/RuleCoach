@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v6';
+const CACHE_NAME = 'rulecoach-v7';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -26,8 +26,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Network-first for Groq API
-  if (url.hostname === 'api.groq.com') {
+  // Network-first for OpenRouter API
+  if (url.hostname === 'openrouter.ai') {
     e.respondWith(
       fetch(e.request).catch(() =>
         new Response(JSON.stringify({ error: 'Offline — AI coaching unavailable' }), {
