@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v4';
+const CACHE_NAME = 'rulecoach-v5';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -26,8 +26,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Network-first for Anthropic API
-  if (url.hostname === 'api.anthropic.com') {
+  // Network-first for Gemini API
+  if (url.hostname === 'generativelanguage.googleapis.com') {
     e.respondWith(
       fetch(e.request).catch(() =>
         new Response(JSON.stringify({ error: 'Offline — AI coaching unavailable' }), {

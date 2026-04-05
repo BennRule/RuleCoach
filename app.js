@@ -1282,7 +1282,7 @@ const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The 
 App.ai.call = async function(userPrompt) {
   const settings = Store.get('rulecoach_settings') || {};
   if (!settings.apiKey) {
-    App.ai.showError('Please add your Anthropic API key in Settings first.');
+    App.ai.showError('Please add your Gemini API key in Settings first. Get one free at aistudio.google.com/apikey');
     return null;
   }
 
@@ -1291,19 +1291,13 @@ App.ai.call = async function(userPrompt) {
   document.getElementById('aiError').classList.remove('show');
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${settings.apiKey}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': settings.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system: AI_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: userPrompt }]
+        system_instruction: { parts: [{ text: AI_SYSTEM_PROMPT }] },
+        contents: [{ parts: [{ text: userPrompt }] }],
+        generationConfig: { maxOutputTokens: 2048 }
       })
     });
 
@@ -1313,7 +1307,7 @@ App.ai.call = async function(userPrompt) {
     }
 
     const data = await resp.json();
-    const text = data.content?.[0]?.text || 'No response received.';
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received.';
 
     document.getElementById('aiLoading').classList.remove('show');
     document.getElementById('aiResponse').textContent = text;
