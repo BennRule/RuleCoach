@@ -66,9 +66,19 @@ function getDefaultProgramme() {
           { targetReps: 8, targetWeight: 35, repRange: '6-8' },
           { targetReps: 8, targetWeight: 35, repRange: '6-8' }
         ]},
+        { name: 'Cable Seated Row (narrow grip)', notes: 'Full stretch at extension, squeeze at peak contraction.', defaultRest: 120, sets: [
+          { targetReps: 10, targetWeight: 50, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 50, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 50, repRange: '8-12' }
+        ]},
         { name: 'Seated Shoulder Press Machine (Gymleco)', notes: '', defaultRest: 150, sets: [
           { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
           { targetReps: 8, targetWeight: 37.5, repRange: '6-8' }
+        ]},
+        { name: 'Rear Delt Row', notes: 'Use yoga block for ROM. Light, controlled.', defaultRest: 90, sets: [
+          { targetReps: 12, targetWeight: 45, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 45, repRange: '10-12' },
+          { targetReps: 12, targetWeight: 45, repRange: '10-12' }
         ]},
         { name: 'Cable Lateral Raise (cross body)', notes: '', defaultRest: 90, sets: [
           { targetReps: 10, targetWeight: 15, repRange: '8-10' },
@@ -142,6 +152,11 @@ function getDefaultProgramme() {
           { targetReps: 12, targetWeight: 37.5, repRange: '8-12' },
           { targetReps: 12, targetWeight: 37.5, repRange: '8-12' }
         ]},
+        { name: 'Seated Shoulder Press Machine (Gymleco)', notes: 'Hypertrophy rep range, controlled descent.', defaultRest: 120, sets: [
+          { targetReps: 10, targetWeight: 32.5, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 32.5, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 32.5, repRange: '8-12' }
+        ]},
         { name: 'Lateral Raise Machine', notes: 'Full ROM, controlled return. No swinging.', defaultRest: 90, sets: [
           { targetReps: 12, targetWeight: 50, repRange: '10-12' },
           { targetReps: 12, targetWeight: 50, repRange: '10-12' },
@@ -188,6 +203,11 @@ function getDefaultProgramme() {
           { targetReps: 15, targetWeight: 150, repRange: '12-15' },
           { targetReps: 15, targetWeight: 150, repRange: '12-15' }
         ]},
+        { name: 'Hack Squat or Smith Machine Squat', notes: 'Quad focus, feet shoulder width. Full depth.', defaultRest: 150, sets: [
+          { targetReps: 10, targetWeight: 80, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 80, repRange: '8-12' },
+          { targetReps: 10, targetWeight: 80, repRange: '8-12' }
+        ]},
         { name: 'Machine Crunch', notes: '', defaultRest: 60, sets: [
           { targetReps: 20, targetWeight: 95, repRange: '15-20' },
           { targetReps: 20, targetWeight: 95, repRange: '15-20' }
@@ -198,12 +218,12 @@ function getDefaultProgramme() {
       ]
     },
     {
-      name: 'Upper C', day: 'Saturday', subtitle: 'Strength Upper + Arms', defaultRest: 150,
+      name: 'Upper C', day: 'Saturday', subtitle: 'Arms + Shoulders', defaultRest: 150,
       exercises: [
-        { name: 'Barbell Bench Press', notes: 'Heavier/lower rep strength focus.', defaultRest: 210, sets: [
-          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
-          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' },
-          { targetReps: 6, targetWeight: 77.5, repRange: '4-6' }
+        { name: 'Pec Deck / Fly Machine', notes: 'Stretch focus, full ROM. Arms day opener.', defaultRest: 90, sets: [
+          { targetReps: 15, targetWeight: 55, repRange: '12-15' },
+          { targetReps: 15, targetWeight: 55, repRange: '12-15' },
+          { targetReps: 15, targetWeight: 55, repRange: '12-15' }
         ]},
         { name: 'Chest Supported Dumbbell Row', notes: 'Heavy, per hand', defaultRest: 150, sets: [
           { targetReps: 8, targetWeight: 37.5, repRange: '6-8' },
@@ -266,7 +286,7 @@ App.init = function() {
   const _prog = Store.get('rulecoach_programme');
   if (_prog) {
     const _ua = _prog.find(w => w.name === 'Upper A');
-    const needsReset = !_ua || !_ua.exercises.find(e => e.name === 'Lat Pulldown') || !_ua.exercises.find(e => e.name === 'Pec Deck / Fly Machine');
+    const needsReset = !_ua || !_ua.exercises.find(e => e.name === 'Cable Seated Row (narrow grip)');
     if (needsReset) {
       Store.set('rulecoach_programme', getDefaultProgramme());
     }
