@@ -216,6 +216,9 @@ label {
 .set-target {
   font-size: 11px; color: var(--text-dim);
 }
+.set-last-time {
+  font-size: 10px; color: var(--text-dim); opacity: 0.5;
+}
 
 .set-inputs {
   display: flex; gap: 4px; align-items: center;

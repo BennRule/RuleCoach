@@ -289,6 +289,7 @@ App.init = function() {
   if (saved) {
     App.activeSession = saved.session;
     App.workoutStartTime = saved.startTime;
+    App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
   }
 
   App.today.render();
@@ -364,31 +365,48 @@ App.today.startAnyWorkout = function() {
   App.modal.open(html);
 };
 
+App.today.getLastSessionData = function(workoutName) {
+  const sessions = Store.get('rulecoach_sessions') || [];
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    if (sessions[i].workoutName === workoutName) return sessions[i];
+  }
+  return null;
+};
+
 App.today.startWorkout = function(name) {
   const programme = Store.get('rulecoach_programme') || [];
   const template = programme.find(w => w.name === name);
   if (!template) return;
+
+  const prevSession = App.today.getLastSessionData(name);
 
   App.activeSession = {
     id: uuid(),
     date: new Date().toISOString(),
     workoutName: template.name,
     durationMinutes: 0,
-    exercises: template.exercises.map(ex => ({
-      name: ex.name,
-      notes: ex.notes || '',
-      defaultRest: ex.defaultRest || template.defaultRest || 120,
-      rpe: null,
-      sets: ex.sets.map(s => ({
-        targetReps: s.targetReps,
-        targetWeight: s.targetWeight,
-        repRange: s.repRange || '',
-        note: s.note || '',
-        actualReps: s.targetReps,
-        actualWeight: s.targetWeight,
-        status: null
-      }))
-    }))
+    _prevSession: prevSession,
+    exercises: template.exercises.map(ex => {
+      const prevEx = prevSession ? prevSession.exercises.find(pe => pe.name === ex.name) : null;
+      return {
+        name: ex.name,
+        notes: ex.notes || '',
+        defaultRest: ex.defaultRest || template.defaultRest || 120,
+        rpe: null,
+        sets: ex.sets.map((s, si) => {
+          const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
+          return {
+            targetReps: s.targetReps,
+            targetWeight: s.targetWeight,
+            repRange: s.repRange || '',
+            note: s.note || '',
+            actualReps: prevSet ? prevSet.actualReps : s.targetReps,
+            actualWeight: prevSet ? prevSet.actualWeight : s.targetWeight,
+            status: null
+          };
+        })
+      };
+    })
   };
   App.workoutStartTime = Date.now();
   App.today.saveActive();
@@ -479,11 +497,21 @@ App.today.renderActiveSession = function(container) {
         ? s.note
         : (s.targetWeight > 0 ? `${s.repRange} @ ${s.targetWeight}${unit}` : s.repRange);
 
+      const prevEx = session._prevSession
+        ? session._prevSession.exercises.find(pe => pe.name === ex.name)
+        : null;
+      const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done'
+        ? prevEx.sets[si] : null;
+      const lastTimeHtml = prevSet
+        ? `<div class="set-last-time">Last: ${prevSet.actualWeight}${unit} x ${prevSet.actualReps}</div>`
+        : '';
+
       html += `
         <div class="${rowClass}" id="setRow${ei}_${si}">
           <div class="set-info">
             <div class="set-label">S${si + 1}</div>
             <div class="set-target">${targetLabel}</div>
+            ${lastTimeHtml}
           </div>
           <div class="set-inputs">
             <input type="number" id="setW${ei}_${si}" value="${s.actualWeight}" step="0.5" inputmode="decimal"
@@ -839,9 +867,11 @@ App.chart.show = function(exerciseName) {
   sessions.forEach(s => {
     s.exercises.forEach(ex => {
       if (ex.name === exerciseName) {
-        const maxWeight = Math.max(...ex.sets.filter(set => set.status === 'done').map(set => set.actualWeight), 0);
+        const doneSets = ex.sets.filter(set => set.status === 'done');
+        const maxWeight = Math.max(...doneSets.map(set => set.actualWeight), 0);
+        const totalVolume = doneSets.reduce((sum, set) => sum + set.actualWeight * set.actualReps, 0);
         if (maxWeight > 0) {
-          dataPoints.push({ date: new Date(s.date), weight: maxWeight });
+          dataPoints.push({ date: new Date(s.date), weight: maxWeight, volume: totalVolume });
         }
       }
     });
@@ -865,11 +895,11 @@ App.chart.show = function(exerciseName) {
     ctx.fillStyle = '#f1f5f9';
     ctx.font = '14px system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText(`${dataPoints[0].weight} kg`, W / 2, H / 2);
+    ctx.fillText(`${dataPoints[0].weight}${unit} | Vol: ${Math.round(dataPoints[0].volume)}`, W / 2, H / 2);
     return;
   }
 
-  const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+  const padding = { top: 30, right: 55, bottom: 40, left: 50 };
   const chartW = W - padding.left - padding.right;
   const chartH = H - padding.top - padding.bottom;
 
@@ -888,7 +918,15 @@ App.chart.show = function(exerciseName) {
   ctx.lineTo(W - padding.right, H - padding.bottom);
   ctx.stroke();
 
-  // Y labels
+  // Legend
+  ctx.font = '11px system-ui';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#7c3aed';
+  ctx.fillText('\u25CF Max Weight', padding.left + 5, 16);
+  ctx.fillStyle = '#22c55e';
+  ctx.fillText('\u25CF Total Volume', padding.left + 100, 16);
+
+  // Y labels (weight - left axis)
   ctx.fillStyle = '#94a3b8';
   ctx.font = '11px system-ui';
   ctx.textAlign = 'right';
@@ -926,7 +964,7 @@ App.chart.show = function(exerciseName) {
   });
   ctx.stroke();
 
-  // Dots
+  // Dots (weight)
   dataPoints.forEach((d, i) => {
     const x = padding.left + (i / (dataPoints.length - 1)) * chartW;
     const y = H - padding.bottom - ((d.weight - minW) / (maxW - minW)) * chartH;
@@ -937,6 +975,43 @@ App.chart.show = function(exerciseName) {
     ctx.strokeStyle = '#0f0f1a';
     ctx.lineWidth = 2;
     ctx.stroke();
+  });
+
+  // Volume line + right axis
+  const volumes = dataPoints.map(d => d.volume);
+  const minV = Math.min(...volumes) * 0.9;
+  const maxV = Math.max(...volumes) * 1.1;
+
+  // Right Y-axis labels
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '10px system-ui';
+  ctx.textAlign = 'left';
+  for (let i = 0; i <= ySteps; i++) {
+    const val = minV + (maxV - minV) * (i / ySteps);
+    const y = H - padding.bottom - (i / ySteps) * chartH;
+    ctx.fillText(Math.round(val), W - padding.right + 8, y + 4);
+  }
+
+  // Volume line
+  ctx.beginPath();
+  ctx.strokeStyle = '#22c55e';
+  ctx.lineWidth = 2;
+  dataPoints.forEach((d, i) => {
+    const x = padding.left + (i / (dataPoints.length - 1)) * chartW;
+    const y = H - padding.bottom - ((d.volume - minV) / (maxV - minV)) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Volume dots
+  dataPoints.forEach((d, i) => {
+    const x = padding.left + (i / (dataPoints.length - 1)) * chartW;
+    const y = H - padding.bottom - ((d.volume - minV) / (maxV - minV)) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#22c55e';
+    ctx.fill();
   });
 };
 
