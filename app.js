@@ -1298,7 +1298,7 @@ App.ai.call = async function(userPrompt) {
         'X-Title': 'RuleCoach'
       },
       body: JSON.stringify({
-        model: 'openrouter/auto',
+        model: 'meta-llama/llama-3.3-70b-instruct:free',
         max_tokens: 2048,
         messages: [
           { role: 'system', content: AI_SYSTEM_PROMPT },
