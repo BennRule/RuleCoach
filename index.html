@@ -73,6 +73,17 @@
         </div>
       </div>
       <div class="settings-section">
+        <h3>Bodyweight</h3>
+        <div class="form-group">
+          <label>Today's Weight (kg)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="bwInput" step="0.1" inputmode="decimal" placeholder="e.g. 85.5">
+            <button class="btn btn-primary" onclick="App.bodyweight.log()">Log</button>
+          </div>
+        </div>
+        <div id="bwHistory" style="margin-top:12px;font-size:13px;color:var(--text-dim);"></div>
+      </div>
+      <div class="settings-section">
         <h3>AI Coaching</h3>
         <div class="form-group">
           <label>OpenRouter API Key <span style="font-weight:400;font-size:11px;color:var(--text-dim);">(free at openrouter.ai/settings/keys)</span></label>

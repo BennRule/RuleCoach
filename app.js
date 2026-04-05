@@ -315,6 +315,7 @@ App.init = function() {
   App.today.render();
   App.history.render();
   App.programme.render();
+  App.bodyweight.render();
 };
 
 // ---- Navigation ----
@@ -441,6 +442,30 @@ App.today.saveActive = function() {
   });
 };
 
+App.today.saveNotes = function(value) {
+  if (!App.activeSession) return;
+  App.activeSession.notes = value;
+  App.today.saveActive();
+};
+
+App.today.swapExercise = function(ei) {
+  const programme = Store.get('rulecoach_programme') || [];
+  const allExercises = [...new Set(programme.flatMap(w => w.exercises.map(e => e.name)))];
+  const current = App.activeSession.exercises[ei].name;
+  let html = `<h2>Swap: ${current}</h2><p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Choose a replacement for this session only</p>`;
+  allExercises.filter(n => n !== current).forEach(name => {
+    html += `<button class="btn btn-outline btn-block" style="margin-top:6px;text-align:left;" onclick="App.today._confirmSwap(${ei},'${name.replace(/'/g, "\\'")}');App.modal.forceClose();">${name}</button>`;
+  });
+  App.modal.open(html);
+};
+
+App.today._confirmSwap = function(ei, newName) {
+  if (!App.activeSession) return;
+  App.activeSession.exercises[ei].name = newName;
+  App.today.saveActive();
+  App.today.renderActiveSession(document.getElementById('todayContent'));
+};
+
 App.today.startElapsedTimer = function() {
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.workoutElapsedInterval = setInterval(() => {
@@ -498,7 +523,10 @@ App.today.renderActiveSession = function(container) {
     <div class="${cardClass}" id="exCard${ei}">
       <div class="exercise-header" onclick="App.today.toggleExercise(${ei})">
         <span class="exercise-name">${ex.name}</span>
-        ${badge}
+        <span style="display:flex;align-items:center;gap:4px;">
+          ${badge}
+          <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;margin-left:8px;" onclick="event.stopPropagation();App.today.swapExercise(${ei})">Swap</button>
+        </span>
       </div>
       <div class="exercise-summary">${summaryParts.join(' | ')}</div>
       <div class="exercise-body">`;
@@ -506,6 +534,16 @@ App.today.renderActiveSession = function(container) {
     if (ex.notes) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
     }
+
+    html += `
+      <div class="warmup-row" id="warmupRow${ei}">
+        <span class="set-label">WU</span>
+        <input type="number" id="warmupW${ei}" placeholder="kg" step="0.5" inputmode="decimal" style="width:60px;">
+        <span class="unit-label">${unit}</span>
+        <span class="unit-label">x</span>
+        <input type="number" id="warmupR${ei}" placeholder="reps" step="1" inputmode="numeric" style="width:50px;">
+        <span class="unit-label" style="color:var(--text-dim);font-size:12px;">warm-up (not logged)</span>
+      </div>`;
 
     ex.sets.forEach((s, si) => {
       let rowClass = 'set-row';
@@ -578,6 +616,12 @@ App.today.renderActiveSession = function(container) {
       </div>
     </div>`;
   });
+
+  html += `
+    <div class="card" style="margin-top:12px;">
+      <label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:6px;">Session Notes</label>
+      <textarea id="sessionNotes" rows="3" placeholder="How did you feel? Anything to flag..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;resize:none;" onchange="App.today.saveNotes(this.value)">${App.activeSession.notes || ''}</textarea>
+    </div>`;
 
   container.innerHTML = html;
 
@@ -741,6 +785,7 @@ App.today.finishWorkout = function() {
     date: App.activeSession.date,
     workoutName: App.activeSession.workoutName,
     durationMinutes: elapsed,
+    notes: App.activeSession.notes || '',
     exercises: App.activeSession.exercises.map(ex => ({
       name: ex.name,
       notes: ex.notes,
@@ -985,6 +1030,7 @@ App.history.render = function() {
         <span>${doneSets}/${totalSets} sets</span>
         <span>${Math.round(totalVol).toLocaleString()} ${unit}</span>
       </div>
+      ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${s.notes}"</div>` : ''}
       <div class="history-detail">`;
 
     s.exercises.forEach(ex => {
@@ -1007,7 +1053,34 @@ App.history.render = function() {
     html += '</div></div>';
   });
 
-  container.innerHTML = html;
+  container.innerHTML = App.history.renderWeeklySummary(sessions) + html;
+};
+
+App.history.renderWeeklySummary = function(sessions) {
+  if (sessions.length === 0) return '';
+  const weeks = {};
+  sessions.forEach(s => {
+    const d = new Date(s.date);
+    const week = `${d.getFullYear()}-W${String(Math.ceil((((d - new Date(d.getFullYear(),0,1)) / 86400000) + new Date(d.getFullYear(),0,1).getDay() + 1) / 7)).padStart(2,'0')}`;
+    if (!weeks[week]) weeks[week] = { sessions: 0, sets: 0, volume: 0, label: `Week of ${d.toLocaleDateString('en-GB', { day:'numeric', month:'short' })}` };
+    weeks[week].sessions++;
+    weeks[week].sets += s.exercises.reduce((a,e) => a + e.sets.filter(st => st.status === 'done').length, 0);
+    weeks[week].volume += s.exercises.reduce((a,e) => a + e.sets.filter(st => st.status === 'done').reduce((b,st) => b + st.actualWeight * st.actualReps, 0), 0);
+  });
+  const recent = Object.entries(weeks).slice(-4).reverse();
+  let html = '<div style="margin-bottom:16px;"><h3 style="font-size:14px;color:var(--text-dim);margin-bottom:8px;">Weekly Summary</h3>';
+  recent.forEach(([week, data]) => {
+    html += `<div class="card" style="margin-bottom:8px;padding:12px;">
+      <div style="font-weight:600;font-size:13px;">${data.label}</div>
+      <div style="display:flex;gap:16px;margin-top:6px;font-size:12px;color:var(--text-dim);">
+        <span>${data.sessions} session${data.sessions !== 1 ? 's' : ''}</span>
+        <span>${data.sets} sets</span>
+        <span>${Math.round(data.volume).toLocaleString()} kg volume</span>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
 };
 
 App.history.toggle = function(idx) {
@@ -1015,6 +1088,13 @@ App.history.toggle = function(idx) {
 };
 
 // ---- CHART ----
+App.orm = {};
+App.orm.calculate = function(weight, reps) {
+  if (!weight || !reps || reps < 1) return null;
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+};
+
 App.chart = {};
 
 App.chart.show = function(exerciseName) {
@@ -1027,8 +1107,13 @@ App.chart.show = function(exerciseName) {
         const doneSets = ex.sets.filter(set => set.status === 'done');
         const maxWeight = Math.max(...doneSets.map(set => set.actualWeight), 0);
         const totalVolume = doneSets.reduce((sum, set) => sum + set.actualWeight * set.actualReps, 0);
+        const bestSet = doneSets.reduce((best, set) => {
+          const orm = App.orm.calculate(set.actualWeight, set.actualReps);
+          return orm > (best ? App.orm.calculate(best.actualWeight, best.actualReps) : 0) ? set : best;
+        }, null);
+        const orm = bestSet ? App.orm.calculate(bestSet.actualWeight, bestSet.actualReps) : 0;
         if (maxWeight > 0) {
-          dataPoints.push({ date: new Date(s.date), weight: maxWeight, volume: totalVolume });
+          dataPoints.push({ date: new Date(s.date), weight: maxWeight, volume: totalVolume, orm: orm });
         }
       }
     });
@@ -1061,8 +1146,10 @@ App.chart.show = function(exerciseName) {
   const chartH = H - padding.top - padding.bottom;
 
   const weights = dataPoints.map(d => d.weight);
-  const minW = Math.min(...weights) * 0.95;
-  const maxW = Math.max(...weights) * 1.05;
+  const orms = dataPoints.map(d => d.orm || d.weight);
+  const allWeightValues = [...weights, ...orms];
+  const minW = Math.min(...allWeightValues) * 0.95;
+  const maxW = Math.max(...allWeightValues) * 1.05;
   const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
@@ -1080,8 +1167,10 @@ App.chart.show = function(exerciseName) {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#7c3aed';
   ctx.fillText('\u25CF Max Weight', padding.left + 5, 16);
+  ctx.fillStyle = '#eab308';
+  ctx.fillText('\u25CF Est. 1RM', padding.left + 100, 16);
   ctx.fillStyle = '#22c55e';
-  ctx.fillText('\u25CF Total Volume', padding.left + 100, 16);
+  ctx.fillText('\u25CF Volume', padding.left + 180, 16);
 
   // Y labels (weight - left axis)
   ctx.fillStyle = '#94a3b8';
@@ -1132,6 +1221,26 @@ App.chart.show = function(exerciseName) {
     ctx.strokeStyle = '#0f0f1a';
     ctx.lineWidth = 2;
     ctx.stroke();
+  });
+
+  // ORM line
+  ctx.beginPath();
+  ctx.strokeStyle = '#eab308';
+  ctx.lineWidth = 2;
+  dataPoints.forEach((d, i) => {
+    const x = padding.left + (i / (dataPoints.length - 1)) * chartW;
+    const y = H - padding.bottom - (((d.orm || d.weight) - minW) / (maxW - minW)) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  dataPoints.forEach((d, i) => {
+    const x = padding.left + (i / (dataPoints.length - 1)) * chartW;
+    const y = H - padding.bottom - (((d.orm || d.weight) - minW) / (maxW - minW)) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#eab308';
+    ctx.fill();
   });
 
   // Volume line + right axis
@@ -1406,11 +1515,35 @@ App.settings.save = function() {
 // ---- DATA IMPORT/EXPORT ----
 App.data = {};
 
+// ---- BODYWEIGHT LOG ----
+App.bodyweight = {};
+
+App.bodyweight.log = function() {
+  const val = parseFloat(document.getElementById('bwInput').value);
+  if (!val || val < 30 || val > 300) return;
+  const entries = Store.get('rulecoach_bodyweight') || [];
+  entries.push({ date: new Date().toISOString(), weight: val });
+  Store.set('rulecoach_bodyweight', entries);
+  document.getElementById('bwInput').value = '';
+  App.bodyweight.render();
+};
+
+App.bodyweight.render = function() {
+  const entries = (Store.get('rulecoach_bodyweight') || []).slice(-10).reverse();
+  const el = document.getElementById('bwHistory');
+  if (!el) return;
+  if (entries.length === 0) { el.innerHTML = 'No entries yet.'; return; }
+  el.innerHTML = entries.map(e => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+    <span>${formatDate(e.date)}</span><span style="color:var(--text);font-weight:600;">${e.weight} kg</span>
+  </div>`).join('');
+};
+
 App.data.exportData = function() {
   const data = {
     programme: Store.get('rulecoach_programme'),
     sessions: Store.get('rulecoach_sessions'),
     settings: Store.get('rulecoach_settings'),
+    bodyweight: Store.get('rulecoach_bodyweight'),
     exportDate: new Date().toISOString()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1428,6 +1561,7 @@ App.data.clearData = function() {
       localStorage.removeItem('rulecoach_programme');
       localStorage.removeItem('rulecoach_sessions');
       localStorage.removeItem('rulecoach_active_session');
+      localStorage.removeItem('rulecoach_bodyweight');
       App.activeSession = null;
       App.init();
       App.nav('today');

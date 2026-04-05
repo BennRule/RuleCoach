@@ -219,6 +219,15 @@ label {
 .set-last-time {
   font-size: 10px; color: var(--text-dim); opacity: 0.5;
 }
+.warmup-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 0; margin-bottom: 4px; opacity: 0.6;
+  border-bottom: 1px dashed var(--border);
+}
+.warmup-row input {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); padding: 6px; font-size: 14px; text-align: center;
+}
 
 .set-inputs {
   display: flex; gap: 4px; align-items: center;
