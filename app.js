@@ -767,14 +767,26 @@ App.today.renderActiveSession = function(container) {
 
       if (isCardioSet) {
         let rowClass = 'set-row' + (s.status === 'done' ? ' set-done' : '');
+        const isRounds = s.repRange.includes('rounds');
+        const isDistance = s.repRange.includes('km') || /^\d+m$/.test(s.repRange.trim());
+        let cardioInput = '';
+        if (isRounds) {
+          cardioInput = `<select style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:13px;" onchange="App.today.updateSet(${ei},${si},'reps',this.value)">
+            ${Array.from({length:11}, (_,i) => `<option value="${i}" ${s.actualReps === i ? 'selected' : ''}>${i} round${i !== 1 ? 's' : ''}</option>`).join('')}
+          </select>`;
+        } else if (isDistance) {
+          cardioInput = `<input type="text" placeholder="Time (e.g. 7:30)" value="${s.note || ''}" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:13px;width:100px;" onchange="App.today.updateCardioNote(${ei},${si},this.value)">`;
+        } else {
+          cardioInput = `<span style="color:var(--text-dim);font-size:13px;">${s.note || ''}</span>`;
+        }
         html += `
           <div class="${rowClass}" id="setRow${ei}_${si}">
             <div class="set-info">
               <div class="set-label">S${si + 1}</div>
               <div class="set-target">${s.repRange}</div>
             </div>
-            <div class="set-inputs" style="flex:1;color:var(--text-dim);font-size:13px;">
-              ${s.note || ''}
+            <div class="set-inputs" style="flex:1;">
+              ${cardioInput}
             </div>
             <div class="set-actions">
               <button class="set-btn set-btn-done ${s.status === 'done' ? 'active' : ''}" onclick="App.today.markSet(${ei},${si},'done')">&#10003;</button>
@@ -886,6 +898,12 @@ App.today.updateSet = function(ei, si, field, value) {
   const s = App.activeSession.exercises[ei].sets[si];
   if (field === 'weight') s.actualWeight = parseFloat(value) || 0;
   if (field === 'reps') s.actualReps = parseInt(value) || 0;
+  App.today.saveActive();
+};
+
+App.today.updateCardioNote = function(ei, si, value) {
+  if (!App.activeSession) return;
+  App.activeSession.exercises[ei].sets[si].note = value;
   App.today.saveActive();
 };
 
