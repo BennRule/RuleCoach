@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v12';
+const CACHE_NAME = 'rulecoach-v13';
 const STATIC_ASSETS = [
   './',
   './index.html',

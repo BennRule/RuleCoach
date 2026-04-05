@@ -751,6 +751,32 @@ App.today.renderActiveSession = function(container) {
       </div>`;
 
     ex.sets.forEach((s, si) => {
+      // Detect cardio/time-based sets — no weight input needed
+      const isCardioSet = s.targetWeight === 0 && (
+        s.repRange.includes('min') ||
+        s.repRange.includes('m') ||
+        s.repRange.includes('rounds') ||
+        s.repRange.includes('km')
+      );
+
+      if (isCardioSet) {
+        let rowClass = 'set-row' + (s.status === 'done' ? ' set-done' : '');
+        html += `
+          <div class="${rowClass}" id="setRow${ei}_${si}">
+            <div class="set-info">
+              <div class="set-label">S${si + 1}</div>
+              <div class="set-target">${s.repRange}</div>
+            </div>
+            <div class="set-inputs" style="flex:1;color:var(--text-dim);font-size:13px;">
+              ${s.note || ''}
+            </div>
+            <div class="set-actions">
+              <button class="set-btn set-btn-done ${s.status === 'done' ? 'active' : ''}" onclick="App.today.markSet(${ei},${si},'done')">&#10003;</button>
+            </div>
+          </div>`;
+        return;
+      }
+
       let rowClass = 'set-row';
       if (s.status === 'done') rowClass += ' set-done';
       if (s.status === 'failed') rowClass += ' set-failed';
