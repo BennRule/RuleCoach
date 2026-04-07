@@ -1,4 +1,9 @@
-const CACHE_NAME = 'rulecoach-v17';
+const CACHE_NAME = 'rulecoach-v18';
+
+// Force activate when told to skip waiting
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
 const STATIC_ASSETS = [
   './',
   './index.html',

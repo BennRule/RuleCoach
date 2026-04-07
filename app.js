@@ -2,9 +2,16 @@
    Rule Coach — Personal Training Tracker PWA
    ============================================================ */
 
-// ---- Service Worker Registration ----
+// ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=3').catch(() => {});
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.update());
+  });
+  navigator.serviceWorker.register('sw.js?v=4').catch(() => {});
+  // Force activate new SW immediately
+  navigator.serviceWorker.ready.then(reg => {
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+  });
 }
 
 // ---- Offline detection ----
@@ -618,10 +625,25 @@ App.init = function() {
     }
   }
   // Migrate sessions from old key to user-specific key
-  const oldSessions = Store.get('rulecoach_sessions');
-  if (oldSessions && oldSessions.length > 0 && (!Store.get('rulecoach_sessions_benn') || Store.get('rulecoach_sessions_benn').length === 0)) {
-    Store.set('rulecoach_sessions_benn', oldSessions);
-  }
+  try {
+    const oldRaw = localStorage.getItem('rulecoach_sessions');
+    const oldSessions = oldRaw ? JSON.parse(oldRaw) : null;
+    if (oldSessions && Array.isArray(oldSessions) && oldSessions.length > 0) {
+      const currentBenn = Store.get('rulecoach_sessions_benn') || [];
+      if (currentBenn.length === 0) {
+        Store.set('rulecoach_sessions_benn', oldSessions);
+        console.log('Migrated ' + oldSessions.length + ' sessions from old key to rulecoach_sessions_benn');
+      } else {
+        // Merge: add any from old key that aren't already in new key (by id)
+        const existingIds = new Set(currentBenn.map(s => s.id));
+        const toAdd = oldSessions.filter(s => !existingIds.has(s.id));
+        if (toAdd.length > 0) {
+          Store.set('rulecoach_sessions_benn', [...currentBenn, ...toAdd]);
+          console.log('Merged ' + toAdd.length + ' sessions from old key');
+        }
+      }
+    }
+  } catch(e) { console.warn('Session migration error:', e); }
   if (!Store.get(sessionsKey())) {
     Store.set(sessionsKey(), []);
   }
