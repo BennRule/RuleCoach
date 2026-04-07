@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v15';
+const CACHE_NAME = 'rulecoach-v16';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -25,6 +25,14 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+
+  // Network-first for Firebase and Google APIs
+  if (url.hostname.includes('firebaseio.com') ||
+      url.hostname.includes('googleapis.com') ||
+      url.hostname.includes('firestore.googleapis.com')) {
+    e.respondWith(fetch(e.request).catch(() => new Response('{"error":"offline"}', { headers: { 'Content-Type': 'application/json' } })));
+    return;
+  }
 
   // Network-first for OpenRouter API
   if (url.hostname === 'openrouter.ai') {

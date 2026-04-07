@@ -100,9 +100,16 @@
           <input type="password" id="settingApiKey" placeholder="sk-or-...">
         </div>
       </div>
+      <div class="settings-section">
+        <h3>Cloud Sync</h3>
+        <div id="syncStatus" style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Not synced</div>
+        <button class="btn btn-primary btn-block" onclick="Sync.forceSync()">Sync Now</button>
+      </div>
       <div class="settings-actions">
         <button class="btn btn-primary btn-block" onclick="App.settings.save()">Save Settings</button>
         <button class="btn btn-outline btn-block" onclick="App.data.exportData()">Export All Data</button>
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="App.data.importData(event)">
+        <button class="btn btn-outline btn-block" onclick="document.getElementById('importFileInput').click()">Import Data</button>
         <button class="btn btn-danger btn-block" onclick="App.data.clearData()">Clear All Data</button>
       </div>
       <div class="version-info">Rule Coach v1.0</div>
@@ -152,6 +159,8 @@
     <button class="chart-close" onclick="App.chart.close()">Close</button>
   </div>
 
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

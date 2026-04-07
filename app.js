@@ -30,10 +30,147 @@ function formatDuration(mins) {
   return `${Math.floor(mins / 60)}h ${mins % 60}min`;
 }
 
+// ---- Firebase Setup ----
+// TODO: Replace with your Firebase project config from console.firebase.google.com
+// Steps: Create project → Firestore Database → Create (europe-west2, test mode)
+//        → Project Settings → Your apps → Add web app → Copy config
+const firebaseConfig = {
+  apiKey: "TODO_PASTE_YOUR_API_KEY",
+  authDomain: "TODO_PROJECT.firebaseapp.com",
+  projectId: "TODO_PROJECT_ID",
+  storageBucket: "TODO_PROJECT.appspot.com",
+  messagingSenderId: "TODO",
+  appId: "TODO"
+};
+let db = null;
+try {
+  if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  }
+} catch (e) {
+  console.warn('Firebase init failed:', e.message);
+}
+
 // ---- Storage ----
 const Store = {
   get(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } },
-  set(key, val) { localStorage.setItem(key, JSON.stringify(val)); },
+  set(key, val) {
+    localStorage.setItem(key, JSON.stringify(val));
+    if (typeof Sync !== 'undefined') Sync.debouncePush(key);
+  },
+};
+
+// ---- Cloud Sync ----
+const Sync = {
+  COLLECTION: 'rulecoach',
+  SYNC_KEYS: [
+    'rulecoach_programme',
+    'rulecoach_sessions_benn',
+    'rulecoach_sessions_bonny',
+    'rulecoach_settings',
+    'rulecoach_bodyweight',
+    'rulecoach_bonny_week',
+    'rulecoach_active_session'
+  ],
+  TS_KEY: '_rulecoach_sync_timestamps',
+  _debounceTimers: {},
+  _status: 'idle',
+  _lastSyncTime: null,
+
+  getTimestamps() {
+    try { return JSON.parse(localStorage.getItem(Sync.TS_KEY)) || {}; } catch { return {}; }
+  },
+
+  setTimestamp(key, time) {
+    const ts = Sync.getTimestamps();
+    ts[key] = time;
+    localStorage.setItem(Sync.TS_KEY, JSON.stringify(ts));
+  },
+
+  async pushKey(key) {
+    if (!db) return;
+    try {
+      const val = Store.get(key);
+      const now = new Date().toISOString();
+      await db.collection(Sync.COLLECTION).doc(key).set({
+        data: val,
+        updatedAt: now
+      });
+      Sync.setTimestamp(key, now);
+    } catch (e) {
+      console.warn('Sync push failed:', key, e.message);
+    }
+  },
+
+  debouncePush(key) {
+    if (!db || !Sync.SYNC_KEYS.includes(key)) return;
+    Sync.setTimestamp(key, new Date().toISOString());
+    clearTimeout(Sync._debounceTimers[key]);
+    Sync._debounceTimers[key] = setTimeout(() => Sync.pushKey(key), 2000);
+  },
+
+  async pullAll() {
+    if (!db) { Sync.renderStatus('No Firebase config'); return; }
+    Sync._status = 'syncing';
+    Sync.renderStatus('Syncing...');
+    try {
+      const localTs = Sync.getTimestamps();
+      for (const key of Sync.SYNC_KEYS) {
+        const doc = await db.collection(Sync.COLLECTION).doc(key).get();
+        if (doc.exists) {
+          const remote = doc.data();
+          const remoteTime = remote.updatedAt || '1970-01-01';
+          const localTime = localTs[key] || '1970-01-01';
+          if (remoteTime > localTime) {
+            // Remote is newer — overwrite local (bypass Store.set to avoid re-sync loop)
+            localStorage.setItem(key, JSON.stringify(remote.data));
+            Sync.setTimestamp(key, remoteTime);
+          } else if (localTime > remoteTime) {
+            // Local is newer — push to remote
+            await Sync.pushKey(key);
+          }
+        } else {
+          // No remote doc — push local if we have data
+          const local = Store.get(key);
+          if (local !== null) await Sync.pushKey(key);
+        }
+      }
+      Sync._status = 'idle';
+      Sync._lastSyncTime = new Date();
+      Sync.renderStatus();
+    } catch (e) {
+      Sync._status = 'error';
+      Sync.renderStatus('Sync error: ' + e.message);
+    }
+  },
+
+  async forceSync() {
+    await Sync.pullAll();
+    // Re-render all screens with potentially updated data
+    if (typeof App !== 'undefined' && App.init) {
+      App.init();
+    }
+  },
+
+  renderStatus(msg) {
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.className = Sync._status === 'error' ? 'sync-status-error' : '';
+      return;
+    }
+    if (Sync._lastSyncTime) {
+      const ago = Math.round((Date.now() - Sync._lastSyncTime.getTime()) / 1000);
+      const agoStr = ago < 60 ? 'just now' : ago < 3600 ? Math.floor(ago / 60) + ' min ago' : Math.floor(ago / 3600) + 'h ago';
+      el.textContent = 'Last synced: ' + agoStr;
+      el.className = 'sync-status-ok';
+    } else {
+      el.textContent = 'Not synced yet';
+      el.className = '';
+    }
+  }
 };
 
 // ---- Default Programme Data ----
@@ -509,6 +646,16 @@ App.init = function() {
   App.history.render();
   App.programme.render();
   App.bodyweight.render();
+
+  // Cloud sync: pull from Firestore (non-blocking)
+  if (db && navigator.onLine) {
+    Sync.pullAll().then(() => {
+      App.today.render();
+      App.history.render();
+      App.programme.render();
+      App.bodyweight.render();
+    }).catch(() => {});
+  }
 };
 
 // ---- Navigation ----
@@ -1853,6 +2000,30 @@ App.data.exportData = function() {
   a.download = `rulecoach-backup-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+App.data.importData = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm('This will overwrite your current data with the imported backup. Continue?')) return;
+      if (data.programme) Store.set('rulecoach_programme', data.programme);
+      if (data.sessions_benn) Store.set('rulecoach_sessions_benn', data.sessions_benn);
+      if (data.sessions_bonny) Store.set('rulecoach_sessions_bonny', data.sessions_bonny);
+      if (data.settings) Store.set('rulecoach_settings', data.settings);
+      if (data.bodyweight) Store.set('rulecoach_bodyweight', data.bodyweight);
+      App.init();
+      App.nav('settings');
+      alert('Data imported successfully!');
+    } catch (err) {
+      alert('Invalid backup file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 };
 
 App.data.clearData = function() {
