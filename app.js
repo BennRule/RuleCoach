@@ -617,8 +617,8 @@ App.init = function() {
       Store.set('rulecoach_programme', getDefaultProgramme());
     }
   }
-  if (!Store.get('rulecoach_sessions')) {
-    Store.set('rulecoach_sessions', []);
+  if (!Store.get(sessionsKey())) {
+    Store.set(sessionsKey(), []);
   }
   if (!Store.get('rulecoach_settings')) {
     Store.set('rulecoach_settings', { apiKey: '', units: 'kg', userName: '' });
@@ -1500,7 +1500,7 @@ App.today.finishWorkout = function() {
 
 App.today.applyAutoProgression = function(completedSession) {
   const programme = Store.get('rulecoach_programme') || [];
-  const allSessions = Store.get('rulecoach_sessions') || [];
+  const allSessions = Store.get(sessionsKey()) || [];
   const workout = programme.find(w => w.name === completedSession.workoutName);
   if (!workout) return [];
 
@@ -1721,7 +1721,7 @@ App.orm.calculate = function(weight, reps) {
 App.chart = {};
 
 App.chart.show = function(exerciseName) {
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   const dataPoints = [];
 
   sessions.forEach(s => {
