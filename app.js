@@ -801,14 +801,173 @@ App.today.saveNotes = function(value) {
   App.today.saveActive();
 };
 
+// ---- Exercise Categories ----
+const EXERCISE_DB = {
+  // Chest — Push (horizontal)
+  'Barbell Bench Press':                      { muscle: 'Chest', pattern: 'Push', equipment: 'Barbell' },
+  'Incline Dumbbell Press':                   { muscle: 'Chest', pattern: 'Push', equipment: 'Dumbbell' },
+  'Incline Chest Press Machine (plate loaded)':{ muscle: 'Chest', pattern: 'Push', equipment: 'Machine' },
+  'Pec Deck / Fly Machine':                   { muscle: 'Chest', pattern: 'Push', equipment: 'Machine' },
+  'Seated Chest Press':                       { muscle: 'Chest', pattern: 'Push', equipment: 'Machine' },
+  'Dumbbell Bench Press':                     { muscle: 'Chest', pattern: 'Push', equipment: 'Dumbbell' },
+  'Cable Chest Fly':                          { muscle: 'Chest', pattern: 'Push', equipment: 'Cable' },
+  'Dips (chest focus)':                       { muscle: 'Chest', pattern: 'Push', equipment: 'Bodyweight' },
+  'Push Ups':                                 { muscle: 'Chest', pattern: 'Push', equipment: 'Bodyweight' },
+
+  // Back — Pull (vertical)
+  'Lat Pulldown':                             { muscle: 'Back', pattern: 'Pull', equipment: 'Cable' },
+  'Plate Loaded Lat Pulldown':                { muscle: 'Back', pattern: 'Pull', equipment: 'Machine' },
+  'Neutral Grip Lat Pulldown':                { muscle: 'Back', pattern: 'Pull', equipment: 'Cable' },
+  'Single Arm Lat Pulldown Machine':          { muscle: 'Back', pattern: 'Pull', equipment: 'Machine' },
+  'Pull Ups':                                 { muscle: 'Back', pattern: 'Pull', equipment: 'Bodyweight' },
+  'Chin Ups':                                 { muscle: 'Back', pattern: 'Pull', equipment: 'Bodyweight' },
+
+  // Back — Pull (horizontal)
+  'Chest Supported Dumbbell Row':             { muscle: 'Back', pattern: 'Row', equipment: 'Dumbbell' },
+  'Cable Seated Row (narrow grip)':           { muscle: 'Back', pattern: 'Row', equipment: 'Cable' },
+  'Seated Row Machine (Pannatta)':            { muscle: 'Back', pattern: 'Row', equipment: 'Machine' },
+  'Chest Supported Machine Row':              { muscle: 'Back', pattern: 'Row', equipment: 'Machine' },
+  'Barbell Bent Over Row':                    { muscle: 'Back', pattern: 'Row', equipment: 'Barbell' },
+  'Dumbbell Single Arm Row':                  { muscle: 'Back', pattern: 'Row', equipment: 'Dumbbell' },
+  'T-Bar Row':                                { muscle: 'Back', pattern: 'Row', equipment: 'Barbell' },
+
+  // Shoulders — Press
+  'Seated Shoulder Press Machine (Gymleco)':  { muscle: 'Shoulders', pattern: 'Push', equipment: 'Machine' },
+  'Neutral Grip Seated Dumbbell Shoulder Press': { muscle: 'Shoulders', pattern: 'Push', equipment: 'Dumbbell' },
+  'Barbell Overhead Press':                   { muscle: 'Shoulders', pattern: 'Push', equipment: 'Barbell' },
+  'Dumbbell Shoulder Press':                  { muscle: 'Shoulders', pattern: 'Push', equipment: 'Dumbbell' },
+  'Arnold Press':                             { muscle: 'Shoulders', pattern: 'Push', equipment: 'Dumbbell' },
+
+  // Shoulders — Lateral
+  'Cable Lateral Raise (cross body)':         { muscle: 'Shoulders', pattern: 'Lateral', equipment: 'Cable' },
+  'Lateral Raise Machine':                    { muscle: 'Shoulders', pattern: 'Lateral', equipment: 'Machine' },
+  'Dumbbell Lateral Raise':                   { muscle: 'Shoulders', pattern: 'Lateral', equipment: 'Dumbbell' },
+  'Cable Cross Body Lateral Raise':           { muscle: 'Shoulders', pattern: 'Lateral', equipment: 'Cable' },
+
+  // Shoulders — Rear delt
+  'Rear Delt Row':                            { muscle: 'Rear Delts', pattern: 'Pull', equipment: 'Dumbbell' },
+  'Rear Fly Machine':                         { muscle: 'Rear Delts', pattern: 'Pull', equipment: 'Machine' },
+  'Face Pulls':                               { muscle: 'Rear Delts', pattern: 'Pull', equipment: 'Cable' },
+  'Band Pull Aparts':                         { muscle: 'Rear Delts', pattern: 'Pull', equipment: 'Band' },
+
+  // Biceps
+  'Preacher Curl Machine':                    { muscle: 'Biceps', pattern: 'Curl', equipment: 'Machine' },
+  'EZ Bar Bicep Curl':                        { muscle: 'Biceps', pattern: 'Curl', equipment: 'Barbell' },
+  'Dumbbell Hammer Curl':                     { muscle: 'Biceps', pattern: 'Curl', equipment: 'Dumbbell' },
+  'Standing Bicep Curl on Cable Machine':     { muscle: 'Biceps', pattern: 'Curl', equipment: 'Cable' },
+  'Incline Dumbbell Curl':                    { muscle: 'Biceps', pattern: 'Curl', equipment: 'Dumbbell' },
+  'Barbell Curl':                             { muscle: 'Biceps', pattern: 'Curl', equipment: 'Barbell' },
+  'Concentration Curl':                       { muscle: 'Biceps', pattern: 'Curl', equipment: 'Dumbbell' },
+
+  // Triceps
+  'Cable Tricep Pushdown (straight bar)':     { muscle: 'Triceps', pattern: 'Extension', equipment: 'Cable' },
+  'Cable Tricep Pushdown (rope)':             { muscle: 'Triceps', pattern: 'Extension', equipment: 'Cable' },
+  'Overhead Tricep Extension':                { muscle: 'Triceps', pattern: 'Extension', equipment: 'Cable' },
+  'Standing Cable Tricep Extension':          { muscle: 'Triceps', pattern: 'Extension', equipment: 'Cable' },
+  'Machine Tricep Dip':                       { muscle: 'Triceps', pattern: 'Extension', equipment: 'Machine' },
+  'Skull Crushers':                           { muscle: 'Triceps', pattern: 'Extension', equipment: 'Barbell' },
+  'Close Grip Bench Press':                   { muscle: 'Triceps', pattern: 'Extension', equipment: 'Barbell' },
+
+  // Quads
+  'Leg Press':                                { muscle: 'Quads', pattern: 'Press', equipment: 'Machine' },
+  'Leg Press (high foot placement)':          { muscle: 'Quads', pattern: 'Press', equipment: 'Machine' },
+  'Hack Squat or Smith Machine Squat':        { muscle: 'Quads', pattern: 'Squat', equipment: 'Machine' },
+  'Seated Knee Extension (tri-set)':          { muscle: 'Quads', pattern: 'Extension', equipment: 'Machine' },
+  'Seated Knee Extension':                    { muscle: 'Quads', pattern: 'Extension', equipment: 'Machine' },
+  'Goblet Squat':                             { muscle: 'Quads', pattern: 'Squat', equipment: 'Dumbbell' },
+  'Barbell Back Squat':                       { muscle: 'Quads', pattern: 'Squat', equipment: 'Barbell' },
+  'Front Squat':                              { muscle: 'Quads', pattern: 'Squat', equipment: 'Barbell' },
+  'Bulgarian Split Squat':                    { muscle: 'Quads', pattern: 'Squat', equipment: 'Dumbbell' },
+  'Walking Lunges':                           { muscle: 'Quads', pattern: 'Squat', equipment: 'Dumbbell' },
+
+  // Glutes
+  'Machine Hip Thrust':                       { muscle: 'Glutes', pattern: 'Hip Hinge', equipment: 'Machine' },
+  'Seated Hip Abduction':                     { muscle: 'Glutes', pattern: 'Abduction', equipment: 'Machine' },
+  'Seated Hip Adduction':                     { muscle: 'Glutes', pattern: 'Adduction', equipment: 'Machine' },
+  'Glute Kickback Machine':                   { muscle: 'Glutes', pattern: 'Hip Hinge', equipment: 'Machine' },
+  'Cable Pull Through':                       { muscle: 'Glutes', pattern: 'Hip Hinge', equipment: 'Cable' },
+  'Barbell Hip Thrust':                       { muscle: 'Glutes', pattern: 'Hip Hinge', equipment: 'Barbell' },
+  'Glute Bridge':                             { muscle: 'Glutes', pattern: 'Hip Hinge', equipment: 'Bodyweight' },
+
+  // Hamstrings
+  'Romanian Deadlift':                        { muscle: 'Hamstrings', pattern: 'Hip Hinge', equipment: 'Barbell' },
+  'Laying Hamstring Curl':                    { muscle: 'Hamstrings', pattern: 'Curl', equipment: 'Machine' },
+  'Seated Hamstring Curl':                    { muscle: 'Hamstrings', pattern: 'Curl', equipment: 'Machine' },
+  '45 Degree Hyper Extension':                { muscle: 'Hamstrings', pattern: 'Hip Hinge', equipment: 'Bodyweight' },
+  'Good Mornings':                            { muscle: 'Hamstrings', pattern: 'Hip Hinge', equipment: 'Barbell' },
+  'Nordic Hamstring Curl':                    { muscle: 'Hamstrings', pattern: 'Curl', equipment: 'Bodyweight' },
+
+  // Core
+  'Machine Crunch':                           { muscle: 'Core', pattern: 'Flexion', equipment: 'Machine' },
+  'Cable Pallof Press':                       { muscle: 'Core', pattern: 'Anti-Rotation', equipment: 'Cable' },
+  'Table Top Crunch':                         { muscle: 'Core', pattern: 'Flexion', equipment: 'Bodyweight' },
+  'Hanging Leg Raise':                        { muscle: 'Core', pattern: 'Flexion', equipment: 'Bodyweight' },
+  'Ab Wheel Rollout':                         { muscle: 'Core', pattern: 'Anti-Extension', equipment: 'Other' },
+  'Plank':                                    { muscle: 'Core', pattern: 'Anti-Extension', equipment: 'Bodyweight' },
+
+  // Cardio
+  '10 Minute Bike':                           { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+  '5 Minute Treadmill Warmup':                { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+  'Treadmill':                                { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+  'Rowing Machine':                           { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+};
+
+function getExerciseCategory(name) {
+  return EXERCISE_DB[name] || null;
+}
+
 App.today.swapExercise = function(ei) {
-  const programme = Store.get('rulecoach_programme') || [];
-  const allExercises = [...new Set(programme.flatMap(w => w.exercises.map(e => e.name)))];
   const current = App.activeSession.exercises[ei].name;
-  let html = `<h2>Swap: ${current}</h2><p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Choose a replacement for this session only</p>`;
-  allExercises.filter(n => n !== current).forEach(name => {
-    html += `<button class="btn btn-outline btn-block" style="margin-top:6px;text-align:left;" onclick="App.today._confirmSwap(${ei},'${name.replace(/'/g, "\\'")}');App.modal.forceClose();">${name}</button>`;
+  const cat = getExerciseCategory(current);
+
+  // Gather all known exercises (from DB + programme)
+  const programme = Store.get('rulecoach_programme') || [];
+  const progNames = [...new Set(programme.flatMap(w => w.exercises.map(e => e.name)))];
+  const allNames = [...new Set([...Object.keys(EXERCISE_DB), ...progNames])];
+
+  // Categorise: same muscle, same pattern, then everything else
+  let sameMusclePattern = [];
+  let sameMuscle = [];
+  let others = [];
+
+  allNames.filter(n => n !== current).forEach(name => {
+    const c = getExerciseCategory(name);
+    if (cat && c && c.muscle === cat.muscle && c.pattern === cat.pattern) {
+      sameMusclePattern.push(name);
+    } else if (cat && c && c.muscle === cat.muscle) {
+      sameMuscle.push(name);
+    } else {
+      others.push(name);
+    }
   });
+
+  sameMusclePattern.sort();
+  sameMuscle.sort();
+  others.sort();
+
+  let html = `<h2>Swap: ${current}</h2>`;
+  if (cat) html += `<p style="color:var(--text-dim);font-size:13px;margin-bottom:4px;">${cat.muscle} · ${cat.pattern} · ${cat.equipment}</p>`;
+  html += `<p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">Session only — won't change your programme</p>`;
+
+  function makeBtn(name, badge) {
+    const c = getExerciseCategory(name);
+    const sub = c ? `<span style="font-size:11px;color:var(--text-dim);margin-left:8px;">${c.equipment}</span>` : '';
+    return `<button class="btn btn-outline btn-block" style="margin-top:5px;text-align:left;padding:10px 12px;" onclick="App.today._confirmSwap(${ei},'${name.replace(/'/g, "\\'")}');App.modal.forceClose();">${badge ? `<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-right:6px;">${badge}</span>` : ''}${name}${sub}</button>`;
+  }
+
+  if (sameMusclePattern.length > 0) {
+    html += `<div style="font-size:12px;font-weight:600;color:var(--accent);margin:12px 0 4px;text-transform:uppercase;letter-spacing:0.5px;">Best match — same muscle &amp; movement</div>`;
+    sameMusclePattern.forEach(n => html += makeBtn(n, '★'));
+  }
+  if (sameMuscle.length > 0) {
+    html += `<div style="font-size:12px;font-weight:600;color:var(--text-dim);margin:16px 0 4px;text-transform:uppercase;letter-spacing:0.5px;">Same muscle group</div>`;
+    sameMuscle.forEach(n => html += makeBtn(n));
+  }
+  if (others.length > 0) {
+    html += `<div style="font-size:12px;font-weight:600;color:var(--text-dim);margin:16px 0 4px;text-transform:uppercase;letter-spacing:0.5px;">All other exercises</div>`;
+    others.forEach(n => html += makeBtn(n));
+  }
+
   App.modal.open(html);
 };
 
