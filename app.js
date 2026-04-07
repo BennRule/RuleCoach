@@ -738,7 +738,7 @@ App.today.startAnyWorkout = function() {
 };
 
 App.today.getLastSessionData = function(workoutName) {
-  const sessions = Store.get('rulecoach_sessions') || [];
+  const sessions = Store.get(sessionsKey()) || [];
   for (let i = sessions.length - 1; i >= 0; i--) {
     if (sessions[i].workoutName === workoutName) return sessions[i];
   }
