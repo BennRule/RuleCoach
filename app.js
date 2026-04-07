@@ -1447,6 +1447,18 @@ App.today.finishWorkout = function() {
   sessions.push(session);
   Store.set(sessionsKey(), sessions);
 
+  // Auto-backup: save a snapshot of all data as a safety net
+  try {
+    localStorage.setItem('_rulecoach_backup', JSON.stringify({
+      programme: Store.get('rulecoach_programme'),
+      sessions_benn: Store.get('rulecoach_sessions_benn'),
+      sessions_bonny: Store.get('rulecoach_sessions_bonny'),
+      settings: Store.get('rulecoach_settings'),
+      bodyweight: Store.get('rulecoach_bodyweight'),
+      backupDate: new Date().toISOString()
+    }));
+  } catch(e) {}
+
   // Auto-flip Bonny's week after completing FB2 or FB4
   const _settings = Store.get('rulecoach_settings') || {};
   if (_settings.user === 'bonny') {
