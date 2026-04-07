@@ -770,8 +770,8 @@ App.today.startWorkout = function(name) {
         sets: ex.sets.map((s, si) => {
           const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
           return {
-            targetReps: s.targetReps,
-            targetWeight: s.targetWeight,
+            targetReps: prevSet ? prevSet.actualReps : s.targetReps,
+            targetWeight: prevSet ? prevSet.actualWeight : s.targetWeight,
             repRange: s.repRange || '',
             note: s.note || '',
             actualReps: prevSet ? prevSet.actualReps : s.targetReps,
