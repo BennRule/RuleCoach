@@ -973,7 +973,60 @@ App.today.swapExercise = function(ei) {
 
 App.today._confirmSwap = function(ei, newName) {
   if (!App.activeSession) return;
-  App.activeSession.exercises[ei].name = newName;
+  const oldEx = App.activeSession.exercises[ei];
+
+  // Try to find last session where user did this exercise — use those weights/reps
+  const sessions = Store.get(sessionsKey()) || [];
+  let foundSets = null;
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const prev = sessions[i].exercises.find(e => e.name === newName);
+    if (prev && prev.sets && prev.sets.length > 0) {
+      foundSets = prev.sets.map(s => ({
+        targetReps: s.actualReps || s.targetReps,
+        targetWeight: s.actualWeight != null ? s.actualWeight : s.targetWeight,
+        repRange: s.repRange || oldEx.sets[0]?.repRange || '8-12',
+        actualReps: null,
+        actualWeight: s.actualWeight != null ? s.actualWeight : s.targetWeight,
+        status: null
+      }));
+      break;
+    }
+  }
+
+  // If not found in history, check programme defaults
+  if (!foundSets) {
+    const programme = Store.get('rulecoach_programme') || [];
+    const allProgrammes = [...programme, ...(typeof getBonnyProgramme === 'function' ? getBonnyProgramme() : [])];
+    for (const w of allProgrammes) {
+      const progEx = w.exercises.find(e => e.name === newName);
+      if (progEx && progEx.sets) {
+        foundSets = progEx.sets.map(s => ({
+          targetReps: s.targetReps,
+          targetWeight: s.targetWeight,
+          repRange: s.repRange || '8-12',
+          actualReps: null,
+          actualWeight: s.targetWeight,
+          status: null
+        }));
+        break;
+      }
+    }
+  }
+
+  // Apply: swap name and sets (keep same number of sets if no match found)
+  oldEx.name = newName;
+  if (foundSets) {
+    oldEx.sets = foundSets;
+  } else {
+    // No history or programme data — reset weights to 0 so user enters fresh
+    oldEx.sets.forEach(s => {
+      s.targetWeight = 0;
+      s.actualWeight = 0;
+      s.actualReps = null;
+      s.status = null;
+    });
+  }
+
   App.today.saveActive();
   App.today.renderActiveSession(document.getElementById('todayContent'));
 };
