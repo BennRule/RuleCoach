@@ -4,7 +4,7 @@
 
 // ---- Service Worker Registration ----
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=2').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=3').catch(() => {});
 }
 
 // ---- Offline detection ----
