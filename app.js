@@ -35,12 +35,13 @@ function formatDuration(mins) {
 // Steps: Create project → Firestore Database → Create (europe-west2, test mode)
 //        → Project Settings → Your apps → Add web app → Copy config
 const firebaseConfig = {
-  apiKey: "TODO_PASTE_YOUR_API_KEY",
-  authDomain: "TODO_PROJECT.firebaseapp.com",
-  projectId: "TODO_PROJECT_ID",
-  storageBucket: "TODO_PROJECT.appspot.com",
-  messagingSenderId: "TODO",
-  appId: "TODO"
+  apiKey: "AIzaSyDb1v-uOoovMPAUhEx89MT8xCw1BGbFYo4",
+  authDomain: "rulecoach-c2fba.firebaseapp.com",
+  projectId: "rulecoach-c2fba",
+  storageBucket: "rulecoach-c2fba.firebasestorage.app",
+  messagingSenderId: "953089761015",
+  appId: "1:953089761015:web:cfa58c2018aac0442c3df2",
+  measurementId: "G-9ZRJFGR1MY"
 };
 let db = null;
 try {
