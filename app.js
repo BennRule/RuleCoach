@@ -617,6 +617,11 @@ App.init = function() {
       Store.set('rulecoach_programme', getDefaultProgramme());
     }
   }
+  // Migrate sessions from old key to user-specific key
+  const oldSessions = Store.get('rulecoach_sessions');
+  if (oldSessions && oldSessions.length > 0 && (!Store.get('rulecoach_sessions_benn') || Store.get('rulecoach_sessions_benn').length === 0)) {
+    Store.set('rulecoach_sessions_benn', oldSessions);
+  }
   if (!Store.get(sessionsKey())) {
     Store.set(sessionsKey(), []);
   }
