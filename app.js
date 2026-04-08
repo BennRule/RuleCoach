@@ -259,8 +259,8 @@ function getDefaultProgramme() {
           { targetReps: 8, targetWeight: 102.5, repRange: '6-8' }
         ]},
         { name: 'Seated Knee Extension (tri-set)', notes: 'Bottom / Mid / Top positions', defaultRest: 120, sets: [
-          { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' },
-          { targetReps: 10, targetWeight: 40, repRange: '8-10', note: '40/20/25kg tri-set' }
+          { targetReps: 10, targetWeight: 85, repRange: '8-10', note: '40/20/25kg tri-set' },
+          { targetReps: 10, targetWeight: 85, repRange: '8-10', note: '40/20/25kg tri-set' }
         ]},
         { name: 'Romanian Deadlift', notes: 'Hinge at hips, bar close to body, flat back.', defaultRest: 180, sets: [
           { targetReps: 8, targetWeight: 107.5, repRange: '6-8' },
@@ -284,9 +284,9 @@ function getDefaultProgramme() {
           { targetReps: 12, targetWeight: 32.5, repRange: '10-12', note: 'Back-off set' }
         ]},
         { name: 'Plate Loaded Lat Pulldown', notes: 'Mid/Top position', defaultRest: 150, sets: [
-          { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' },
-          { targetReps: 12, targetWeight: 50, repRange: '8-12', note: '50kg mid / 20kg top' },
-          { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' }
+          { targetReps: 8, targetWeight: 105, repRange: '6-8', note: '65kg mid / 40kg top' },
+          { targetReps: 12, targetWeight: 70, repRange: '8-12', note: '50kg mid / 20kg top' },
+          { targetReps: 8, targetWeight: 105, repRange: '6-8', note: '65kg mid / 40kg top' }
         ]},
         { name: 'Pec Deck / Fly Machine', notes: 'Higher rep pump set. Full ROM.', defaultRest: 90, sets: [
           { targetReps: 15, targetWeight: 55, repRange: '12-15' },
