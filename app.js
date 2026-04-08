@@ -7,7 +7,7 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
     regs.forEach(r => r.update());
   });
-  navigator.serviceWorker.register('sw.js?v=4').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=5').catch(() => {});
   // Force activate new SW immediately
   navigator.serviceWorker.ready.then(reg => {
     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
