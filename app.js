@@ -1071,6 +1071,24 @@ App.today.startElapsedTimer = function() {
   }, 1000);
 };
 
+// Per-exercise unit overrides (e.g. Preacher Curl Machine → lbs)
+function getUnitOverrides() {
+  try { return JSON.parse(localStorage.getItem('_rulecoach_unit_overrides')) || {}; } catch { return {}; }
+}
+function getExerciseUnit(exName, defaultUnit) {
+  return getUnitOverrides()[exName] || defaultUnit;
+}
+App.today.toggleExerciseUnit = function(ei) {
+  const ex = App.activeSession.exercises[ei];
+  const settings = Store.get('rulecoach_settings') || {};
+  const defaultUnit = settings.units || 'kg';
+  const overrides = getUnitOverrides();
+  const current = overrides[ex.name] || defaultUnit;
+  overrides[ex.name] = current === 'kg' ? 'lbs' : 'kg';
+  localStorage.setItem('_rulecoach_unit_overrides', JSON.stringify(overrides));
+  App.today.renderActiveSession(document.getElementById('todayContent'));
+};
+
 App.today.renderActiveSession = function(container) {
   const session = App.activeSession;
   const settings = Store.get('rulecoach_settings') || {};
@@ -1089,6 +1107,7 @@ App.today.renderActiveSession = function(container) {
     </div>`;
 
   session.exercises.forEach((ex, ei) => {
+    const exUnit = getExerciseUnit(ex.name, unit);
     const allDone = ex.sets.every(s => s.status !== null);
     const hasFail = ex.sets.some(s => s.status === 'failed');
     const doneCount = ex.sets.filter(s => s.status !== null).length;
@@ -1106,8 +1125,8 @@ App.today.renderActiveSession = function(container) {
     // Summary for collapsed state
     let summaryParts = [];
     ex.sets.forEach((s, si) => {
-      if (s.status === 'done') summaryParts.push(`${s.actualWeight}${unit} x ${s.actualReps}`);
-      else if (s.status === 'failed') summaryParts.push(`${s.actualWeight}${unit} x ${s.actualReps} (F)`);
+      if (s.status === 'done') summaryParts.push(`${s.actualWeight}${exUnit} x ${s.actualReps}`);
+      else if (s.status === 'failed') summaryParts.push(`${s.actualWeight}${exUnit} x ${s.actualReps} (F)`);
       else if (s.status === 'skipped') summaryParts.push('Skipped');
     });
 
@@ -1135,8 +1154,8 @@ App.today.renderActiveSession = function(container) {
       html += `
         <div class="warmup-row" id="warmupRow${ei}">
           <span class="set-label">WU</span>
-          <input type="number" id="warmupW${ei}" placeholder="kg" step="0.5" inputmode="decimal" style="width:60px;">
-          <span class="unit-label">${unit}</span>
+          <input type="number" id="warmupW${ei}" placeholder="${exUnit}" step="0.5" inputmode="decimal" style="width:60px;">
+          <span class="unit-label" onclick="App.today.toggleExerciseUnit(${ei})" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;">${exUnit}</span>
           <span class="unit-label">x</span>
           <input type="number" id="warmupR${ei}" placeholder="reps" step="1" inputmode="numeric" style="width:50px;">
           <span class="unit-label" style="color:var(--text-dim);font-size:12px;">warm-up (not logged)</span>
@@ -1197,7 +1216,7 @@ App.today.renderActiveSession = function(container) {
       const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done'
         ? prevEx.sets[si] : null;
       const lastTimeHtml = prevSet
-        ? `<div class="set-last-time">Last: ${prevSet.actualWeight}${unit} x ${prevSet.actualReps}</div>`
+        ? `<div class="set-last-time">Last: ${prevSet.actualWeight}${exUnit} x ${prevSet.actualReps}</div>`
         : '';
 
       html += `
@@ -1210,7 +1229,7 @@ App.today.renderActiveSession = function(container) {
           <div class="set-inputs">
             <input type="number" id="setW${ei}_${si}" value="${s.actualWeight}" step="0.5" inputmode="decimal"
               onchange="App.today.updateSet(${ei},${si},'weight',this.value)">
-            <span class="unit-label">${unit}</span>
+            <span class="unit-label" onclick="App.today.toggleExerciseUnit(${ei})" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;">${exUnit}</span>
             <span class="unit-label">x</span>
             <input type="number" id="setR${ei}_${si}" value="${s.actualReps}" step="1" inputmode="numeric"
               onchange="App.today.updateSet(${ei},${si},'reps',this.value)">
