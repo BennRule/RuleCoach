@@ -1703,16 +1703,19 @@ App.history.render = function() {
     const totalSets = s.exercises.reduce((a, e) => a + e.sets.length, 0);
 
     html += `
-    <div class="history-item" id="histItem${idx}" onclick="App.history.toggle(${idx})">
-      <div class="history-date">${formatDate(s.date)}</div>
-      <div class="history-name">${s.workoutName}</div>
-      <div class="history-meta">
-        <span>${formatDuration(s.durationMinutes)}</span>
-        <span>${doneSets}/${totalSets} sets</span>
-        <span>${Math.round(totalVol).toLocaleString()} ${unit}</span>
-      </div>
-      ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${s.notes}"</div>` : ''}
-      <div class="history-detail">`;
+    <div class="history-swipe-wrap" id="histWrap${idx}">
+      <div class="history-swipe-delete" onclick="event.stopPropagation();App.history.deleteSession(${idx})">Delete</div>
+      <div class="history-item" id="histItem${idx}" onclick="App.history.toggle(${idx})"
+        ontouchstart="App.history._touchStart(event,${idx})" ontouchmove="App.history._touchMove(event,${idx})" ontouchend="App.history._touchEnd(event,${idx})">
+        <div class="history-date">${formatDate(s.date)}</div>
+        <div class="history-name">${s.workoutName}</div>
+        <div class="history-meta">
+          <span>${formatDuration(s.durationMinutes)}</span>
+          <span>${doneSets}/${totalSets} sets</span>
+          <span>${Math.round(totalVol).toLocaleString()} ${unit}</span>
+        </div>
+        ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${s.notes}"</div>` : ''}
+        <div class="history-detail">`;
 
     s.exercises.forEach(ex => {
       html += `<div class="history-exercise-block">
@@ -1731,10 +1734,70 @@ App.history.render = function() {
       html += '</div>';
     });
 
-    html += '</div></div>';
+    html += '</div></div></div>';
   });
 
   container.innerHTML = App.history.renderWeeklySummary(sessions) + html;
+};
+
+// Swipe-to-delete touch handling
+App.history._swipeState = {};
+
+App.history._touchStart = function(e, idx) {
+  const touch = e.touches[0];
+  App.history._swipeState = { startX: touch.clientX, startY: touch.clientY, idx: idx, swiping: false };
+};
+
+App.history._touchMove = function(e, idx) {
+  const st = App.history._swipeState;
+  if (st.idx !== idx) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - st.startX;
+  const dy = touch.clientY - st.startY;
+
+  // Only swipe if horizontal movement > vertical (prevents blocking scroll)
+  if (!st.swiping && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+    st.swiping = true;
+  }
+  if (!st.swiping) return;
+  e.preventDefault();
+
+  const el = document.getElementById('histItem' + idx);
+  if (!el) return;
+  const offset = Math.min(0, Math.max(-80, dx));
+  el.style.transition = 'none';
+  el.style.transform = 'translateX(' + offset + 'px)';
+};
+
+App.history._touchEnd = function(e, idx) {
+  const st = App.history._swipeState;
+  if (st.idx !== idx) return;
+  const el = document.getElementById('histItem' + idx);
+  if (!el) return;
+
+  el.style.transition = 'transform .25s ease';
+  const currentX = parseFloat(el.style.transform.replace(/[^-\d.]/g, '')) || 0;
+
+  if (currentX < -40) {
+    el.classList.add('swiped');
+    el.style.transform = '';
+  } else {
+    el.classList.remove('swiped');
+    el.style.transform = '';
+  }
+  App.history._swipeState = {};
+};
+
+App.history.deleteSession = function(idx) {
+  // idx is the reversed index (0 = most recent)
+  const sessions = Store.get(sessionsKey()) || [];
+  const actualIdx = sessions.length - 1 - idx;
+  const session = sessions[actualIdx];
+  if (!session) return;
+  if (!confirm('Delete "' + session.workoutName + '" from ' + formatDate(session.date) + '?')) return;
+  sessions.splice(actualIdx, 1);
+  Store.set(sessionsKey(), sessions);
+  App.history.render();
 };
 
 App.history.renderWeeklySummary = function(sessions) {
