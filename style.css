@@ -276,6 +276,16 @@ label {
   padding: 6px; text-align: center;
 }
 
+.rest-timer-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 0 -16px 8px;
+  background: var(--card-alt);
+  border-bottom: 1px solid var(--border);
+}
+
 .rest-timer-area {
   display: flex; align-items: center; gap: 8px;
   margin-left: auto;

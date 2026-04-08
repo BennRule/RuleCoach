@@ -1142,6 +1142,24 @@ App.today.renderActiveSession = function(container) {
       <div class="exercise-summary">${summaryParts.join(' | ')}</div>
       <div class="exercise-body">`;
 
+    // Rest timer banner (below header, above sets)
+    const restSecs = ex.defaultRest || 120;
+    if (!isCardioExercise) {
+      html += `
+        <div class="rest-timer-banner" id="restBanner${ei}">
+          <div class="rest-presets">
+            ${[60,90,120,180].map(t => {
+              const label = t >= 120 ? `${t/60}min` : `${t}s`;
+              return `<button class="rest-preset-btn ${restSecs === t ? 'active' : ''}" onclick="event.stopPropagation();App.today.setRestPreset(${ei},${t})">${label}</button>`;
+            }).join('')}
+          </div>
+          <div class="rest-timer-display" id="restDisplay${ei}">
+            ${App.today.formatRestTime(restSecs)}
+          </div>
+          <button class="rest-btn" id="restBtn${ei}" onclick="event.stopPropagation();App.today.toggleRest(${ei})">Start</button>
+        </div>`;
+    }
+
     if (ex.notes) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
     }
@@ -1233,8 +1251,7 @@ App.today.renderActiveSession = function(container) {
         </div>`;
     });
 
-    // RPE + rest timer
-    const restSecs = ex.defaultRest || 120;
+    // RPE only (rest timer is now in banner above)
     html += `
         <div class="exercise-footer">
           <div class="rpe-selector">
@@ -1243,18 +1260,6 @@ App.today.renderActiveSession = function(container) {
               <option value="">-</option>
               ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${ex.rpe == n ? 'selected' : ''}>${n}</option>`).join('')}
             </select>
-          </div>
-          <div class="rest-timer-area">
-            <div class="rest-presets">
-              ${[60,90,120,180].map(t => {
-                const label = t >= 120 ? `${t/60}min` : `${t}s`;
-                return `<button class="rest-preset-btn ${restSecs === t ? 'active' : ''}" onclick="App.today.setRestPreset(${ei},${t})">${label}</button>`;
-              }).join('')}
-            </div>
-            <div class="rest-timer-display" id="restDisplay${ei}">
-              ${App.today.formatRestTime(restSecs)}
-            </div>
-            <button class="rest-btn" id="restBtn${ei}" onclick="App.today.toggleRest(${ei})">Start</button>
           </div>
         </div>
       </div>
