@@ -1150,17 +1150,6 @@ App.today.renderActiveSession = function(container) {
       s.repRange.includes('min') || s.repRange.includes('m') ||
       s.repRange.includes('rounds') || s.repRange.includes('km')
     ));
-    if (!isCardioExercise) {
-      html += `
-        <div class="warmup-row" id="warmupRow${ei}">
-          <span class="set-label">WU</span>
-          <input type="number" id="warmupW${ei}" placeholder="${exUnit}" step="0.5" inputmode="decimal" style="width:60px;">
-          <span class="unit-label" onclick="App.today.toggleExerciseUnit(${ei})" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;">${exUnit}</span>
-          <span class="unit-label">x</span>
-          <input type="number" id="warmupR${ei}" placeholder="reps" step="1" inputmode="numeric" style="width:50px;">
-          <span class="unit-label" style="color:var(--text-dim);font-size:12px;">warm-up (not logged)</span>
-        </div>`;
-    }
 
     ex.sets.forEach((s, si) => {
       // Detect cardio/time-based sets — no weight input needed
