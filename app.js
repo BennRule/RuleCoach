@@ -280,8 +280,8 @@ function getDefaultProgramme() {
       exercises: [
         { name: 'Incline Chest Press Machine (plate loaded)', notes: '', defaultRest: 150, sets: [
           { targetReps: 8, targetWeight: 40, repRange: '6-8' },
-          { targetReps: 12, targetWeight: 32.5, repRange: '8-12' },
-          { targetReps: 8, targetWeight: 40, repRange: '6-8' }
+          { targetReps: 8, targetWeight: 40, repRange: '6-8' },
+          { targetReps: 12, targetWeight: 32.5, repRange: '10-12', note: 'Back-off set' }
         ]},
         { name: 'Plate Loaded Lat Pulldown', notes: 'Mid/Top position', defaultRest: 150, sets: [
           { targetReps: 8, targetWeight: 65, repRange: '6-8', note: '65kg mid / 40kg top' },
