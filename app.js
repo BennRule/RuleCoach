@@ -1142,6 +1142,11 @@ App.today.renderActiveSession = function(container) {
       <div class="exercise-summary">${summaryParts.join(' | ')}</div>
       <div class="exercise-body">`;
 
+    const isCardioExercise = ex.sets.every(s => s.targetWeight === 0 && (
+      s.repRange.includes('min') || s.repRange.includes('m') ||
+      s.repRange.includes('rounds') || s.repRange.includes('km')
+    ));
+
     // Rest timer banner (below header, above sets)
     const restSecs = ex.defaultRest || 120;
     if (!isCardioExercise) {
@@ -1163,11 +1168,6 @@ App.today.renderActiveSession = function(container) {
     if (ex.notes) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
     }
-
-    const isCardioExercise = ex.sets.every(s => s.targetWeight === 0 && (
-      s.repRange.includes('min') || s.repRange.includes('m') ||
-      s.repRange.includes('rounds') || s.repRange.includes('km')
-    ));
 
     ex.sets.forEach((s, si) => {
       // Detect cardio/time-based sets — no weight input needed
