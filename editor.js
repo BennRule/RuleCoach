@@ -45,6 +45,12 @@ const Editor = {
 
   // ---- Cloud Sync ----
   async sync() {
+    // If there are unsaved edits, save them to cloud first before pulling
+    if (Editor.dirty) {
+      await Editor.save();
+      return; // save() already syncs state
+    }
+
     const ind = document.getElementById('syncIndicator');
     ind.textContent = 'Syncing...';
     ind.className = 'sync-indicator';

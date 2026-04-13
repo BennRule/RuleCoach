@@ -626,15 +626,7 @@ App.init = function() {
   if (!Store.get('rulecoach_programme')) {
     Store.set('rulecoach_programme', getDefaultProgramme());
   }
-  // Migrate: reset programme if missing new exercises
-  const _prog = Store.get('rulecoach_programme');
-  if (_prog) {
-    const _ua = _prog.find(w => w.name === 'Upper A');
-    const needsReset = !_ua || !_ua.exercises.find(e => e.name === 'Cable Seated Row (narrow grip)');
-    if (needsReset) {
-      Store.set('rulecoach_programme', getDefaultProgramme());
-    }
-  }
+  // (Migration removed — was resetting user-edited programmes to defaults)
   // Migrate sessions from old key to user-specific key
   try {
     const oldRaw = localStorage.getItem('rulecoach_sessions');
