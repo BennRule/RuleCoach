@@ -115,6 +115,15 @@
       <div class="version-info">Rule Coach v1.0</div>
     </div>
 
+    <!-- Global Rest Timer Bar (fixed position) -->
+    <div class="global-rest-bar" id="globalRestBar" onclick="App.today.toggleGlobalRest()">
+      <div class="global-rest-progress" id="globalRestProgress"></div>
+      <div class="global-rest-content">
+        <span class="global-rest-label" id="globalRestLabel"></span>
+        <span class="global-rest-display" id="globalRestDisplay">0:00</span>
+      </div>
+    </div>
+
     <!-- Finish Workout FAB -->
     <div class="finish-workout-fab" id="finishFab">
       <button class="btn btn-success" onclick="App.today.finishWorkout()" style="padding:14px 32px;font-size:17px;border-radius:28px;box-shadow:0 4px 20px rgba(34,197,94,.4);">

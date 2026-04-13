@@ -724,8 +724,13 @@ App.today.render = function() {
 
   if (App.activeSession) {
     App.today.renderActiveSession(container);
+    App.today.showRestBar();
+    App.today.resetRestBar();
     return;
   }
+
+  // No active session — hide rest bar
+  App.today.hideRestBar();
 
   if (!workout) {
     container.innerHTML = `
@@ -813,9 +818,12 @@ App.today.startWorkout = function(name) {
     })
   };
   App.workoutStartTime = Date.now();
+  App._lastRestTime = 120; // Default 2 min for warmup taps
   App.today.saveActive();
   App.today.renderActiveSession(document.getElementById('todayContent'));
   App.today.startElapsedTimer();
+  App.today.showRestBar();
+  App.today.resetRestBar();
 };
 
 App.today.saveActive = function() {
@@ -1150,23 +1158,7 @@ App.today.renderActiveSession = function(container) {
       s.repRange.includes('rounds') || s.repRange.includes('km')
     ));
 
-    // Rest timer banner (below header, above sets)
-    const restSecs = ex.defaultRest || 120;
-    if (!isCardioExercise) {
-      html += `
-        <div class="rest-timer-banner" id="restBanner${ei}">
-          <div class="rest-presets">
-            ${[60,90,120,180].map(t => {
-              const label = t >= 120 ? `${t/60}min` : `${t}s`;
-              return `<button class="rest-preset-btn ${restSecs === t ? 'active' : ''}" onclick="event.stopPropagation();App.today.setRestPreset(${ei},${t})">${label}</button>`;
-            }).join('')}
-          </div>
-          <div class="rest-timer-display" id="restDisplay${ei}">
-            ${App.today.formatRestTime(restSecs)}
-          </div>
-          <button class="rest-btn" id="restBtn${ei}" onclick="event.stopPropagation();App.today.toggleRest(${ei})">Start</button>
-        </div>`;
-    }
+    // (rest timer is now a global fixed bar — see #globalRestBar)
 
     if (ex.notes) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
@@ -1345,63 +1337,75 @@ App.today.setRpe = function(ei, value) {
   App.today.saveActive();
 };
 
-App.today.setRestPreset = function(ei, secs) {
-  if (!App.activeSession) return;
-  App.activeSession.exercises[ei].defaultRest = secs;
-  App.today.saveActive();
-
-  // Update display if not running
-  if (!App.restTimer || App.restTimer.exerciseIdx !== ei) {
-    const display = document.getElementById('restDisplay' + ei);
-    if (display) display.textContent = App.today.formatRestTime(secs);
-  }
-
-  // Update preset buttons
-  document.querySelectorAll(`#exCard${ei} .rest-preset-btn`).forEach(btn => {
-    btn.classList.remove('active');
-  });
-  const presets = document.querySelectorAll(`#exCard${ei} .rest-preset-btn`);
-  [60,90,120,180].forEach((t, i) => {
-    if (t === secs && presets[i]) presets[i].classList.add('active');
-  });
+// Global rest timer — always visible during workout, fixed bar
+App.today.showRestBar = function() {
+  const bar = document.getElementById('globalRestBar');
+  if (bar) bar.classList.add('visible');
 };
 
-App.today.toggleRest = function(ei) {
+App.today.hideRestBar = function() {
+  const bar = document.getElementById('globalRestBar');
+  if (bar) bar.classList.remove('visible', 'running', 'ringing');
+};
+
+App.today.resetRestBar = function() {
+  // Show bar in idle state with default rest time
+  const bar = document.getElementById('globalRestBar');
+  const display = document.getElementById('globalRestDisplay');
+  const progress = document.getElementById('globalRestProgress');
+  const label = document.getElementById('globalRestLabel');
+  if (!bar) return;
+
+  bar.classList.remove('running', 'ringing');
+  if (progress) { progress.style.transition = 'none'; progress.style.width = '0%'; }
+
+  const defaultRest = App._lastRestTime || 120;
+  if (display) display.textContent = App.today.formatRestTime(defaultRest);
+  if (label) label.textContent = 'Tap to start rest';
+};
+
+App.today.startGlobalRest = function(ei) {
   // Stop any existing timer
   if (App.restTimer) {
     clearInterval(App.restTimer.interval);
-    const prevDisplay = document.getElementById('restDisplay' + App.restTimer.exerciseIdx);
-    if (prevDisplay) prevDisplay.classList.remove('ringing');
-    const prevBtn = document.getElementById('restBtn' + App.restTimer.exerciseIdx);
-    if (prevBtn) prevBtn.textContent = 'Start';
     App.restTimer = null;
   }
 
-  const ex = App.activeSession.exercises[ei];
-  const total = ex.defaultRest || 120;
+  const ex = ei !== undefined && App.activeSession ? App.activeSession.exercises[ei] : null;
+  const total = ex ? (ex.defaultRest || 120) : (App._lastRestTime || 120);
+  App._lastRestTime = total;
   let remaining = total;
 
-  const display = document.getElementById('restDisplay' + ei);
-  const btn = document.getElementById('restBtn' + ei);
-  if (!display || !btn) return;
+  const bar = document.getElementById('globalRestBar');
+  const display = document.getElementById('globalRestDisplay');
+  const progress = document.getElementById('globalRestProgress');
+  const label = document.getElementById('globalRestLabel');
+  if (!bar || !display) return;
 
+  bar.classList.add('visible', 'running');
+  bar.classList.remove('ringing');
   display.textContent = App.today.formatRestTime(remaining);
-  display.classList.remove('ringing');
-  btn.textContent = 'Stop';
+  if (label) label.textContent = ex ? ex.name : 'Rest';
+  if (progress) { progress.style.width = '100%'; progress.style.transition = 'none'; }
+
+  // Animate progress bar
+  requestAnimationFrame(() => {
+    if (progress) { progress.style.transition = `width ${total}s linear`; progress.style.width = '0%'; }
+  });
 
   const interval = setInterval(() => {
     remaining--;
     if (remaining <= 0) {
       clearInterval(interval);
       display.textContent = '0:00';
-      display.classList.add('ringing');
-      btn.textContent = 'Start';
+      bar.classList.remove('running');
+      bar.classList.add('ringing');
       App.restTimer = null;
 
       // Vibrate
       if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
 
-      // Audio ping for background
+      // Audio ping
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = ctx.createOscillator();
@@ -1414,12 +1418,42 @@ App.today.toggleRest = function(ei) {
         osc.stop(ctx.currentTime + 0.5);
       } catch(e) {}
 
+      // Reset to idle after 5 seconds
+      setTimeout(() => {
+        if (!App.restTimer) App.today.resetRestBar();
+      }, 5000);
+
       return;
     }
     display.textContent = App.today.formatRestTime(remaining);
   }, 1000);
 
   App.restTimer = { interval, remaining, exerciseIdx: ei };
+};
+
+App.today.stopGlobalRest = function() {
+  if (App.restTimer) {
+    clearInterval(App.restTimer.interval);
+    App.restTimer = null;
+  }
+  App.today.resetRestBar();
+};
+
+App.today.toggleGlobalRest = function() {
+  if (App.restTimer) {
+    // Tapping while running stops it
+    App.today.stopGlobalRest();
+  } else {
+    // Tapping while idle starts with last exercise's rest time (default 2 min)
+    const lastEi = App._lastCompletedExIdx;
+    App.today.startGlobalRest(lastEi);
+  }
+};
+
+// Called when a set is completed — auto-starts rest
+App.today.toggleRest = function(ei) {
+  App._lastCompletedExIdx = ei;
+  App.today.startGlobalRest(ei);
 };
 
 App.today.checkFinish = function() {
@@ -1547,7 +1581,7 @@ App.today.finishWorkout = function() {
   App.workoutStartTime = null;
   localStorage.removeItem('rulecoach_active_session');
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
-  if (App.restTimer) { clearInterval(App.restTimer.interval); App.restTimer = null; }
+  App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
 
   App.today.render();
@@ -1722,7 +1756,7 @@ App.today.confirmCancelWorkout = function() {
   App.workoutStartTime = null;
   localStorage.removeItem('rulecoach_active_session');
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
-  if (App.restTimer) { clearInterval(App.restTimer.interval); App.restTimer = null; }
+  App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
   App.modal.forceClose();
   App.today.render();
