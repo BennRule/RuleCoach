@@ -276,27 +276,26 @@ label {
   padding: 6px; text-align: center;
 }
 
-/* Global Rest Timer Bar — fixed at bottom above nav */
+/* Global Rest Timer Bar — fixed at top */
 .global-rest-bar {
   display: none;
   position: fixed;
-  bottom: calc(80px + env(safe-area-inset-bottom));
-  left: 12px;
-  right: 12px;
-  height: 52px;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  height: 48px;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border-bottom: 1px solid var(--border);
   overflow: hidden;
-  z-index: 150;
+  z-index: 200;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 .global-rest-bar.visible { display: block; }
-.global-rest-bar.running { border-color: var(--accent); }
+.global-rest-bar.visible ~ .app-container { padding-top: 48px; }
+.global-rest-bar.running { background: var(--bg); }
 .global-rest-bar.ringing {
-  border-color: var(--green);
-  box-shadow: 0 0 20px rgba(34,197,94,0.4);
+  border-bottom-color: var(--green);
+  background: rgba(34,197,94,0.08);
 }
 .global-rest-bar.ringing .global-rest-display {
   color: var(--green);
@@ -309,7 +308,6 @@ label {
   top: 0; left: 0; bottom: 0;
   background: rgba(124,58,237,0.2);
   width: 100%;
-  border-radius: 14px;
 }
 
 .global-rest-content {
@@ -350,7 +348,7 @@ label {
 .finish-workout-fab {
   display: none;
   position: fixed;
-  bottom: calc(130px + env(safe-area-inset-bottom));
+  bottom: calc(80px + env(safe-area-inset-bottom));
   left: 50%; transform: translateX(-50%);
   z-index: 100;
   transition: bottom 0.2s;

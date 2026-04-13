@@ -15,6 +15,15 @@
 <body>
   <div class="offline-banner" id="offlineBanner">You are offline — AI coaching unavailable</div>
 
+  <!-- Global Rest Timer Bar (fixed at top) -->
+  <div class="global-rest-bar" id="globalRestBar" onclick="App.today.toggleGlobalRest()">
+    <div class="global-rest-progress" id="globalRestProgress"></div>
+    <div class="global-rest-content">
+      <span class="global-rest-label" id="globalRestLabel"></span>
+      <span class="global-rest-display" id="globalRestDisplay">0:00</span>
+    </div>
+  </div>
+
   <div class="app-container">
     <!-- TODAY -->
     <div class="screen active" id="screen-today">
@@ -113,15 +122,6 @@
         <button class="btn btn-danger btn-block" onclick="App.data.clearData()">Clear All Data</button>
       </div>
       <div class="version-info">Rule Coach v1.0</div>
-    </div>
-
-    <!-- Global Rest Timer Bar (fixed position) -->
-    <div class="global-rest-bar" id="globalRestBar" onclick="App.today.toggleGlobalRest()">
-      <div class="global-rest-progress" id="globalRestProgress"></div>
-      <div class="global-rest-content">
-        <span class="global-rest-label" id="globalRestLabel"></span>
-        <span class="global-rest-display" id="globalRestDisplay">0:00</span>
-      </div>
     </div>
 
     <!-- Finish Workout FAB -->
