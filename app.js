@@ -1550,6 +1550,14 @@ App.today.finishWorkout = function() {
   App.today.render();
 };
 
+// Smart increment: compounds get 2.5kg, isolation/machines get 1.25kg
+App.today.getIncrement = function(exerciseName) {
+  const name = exerciseName.toLowerCase();
+  const compoundKeywords = ['bench', 'squat', 'deadlift', 'leg press', 'row', 'overhead press', 'military press', 'hip thrust', 'rack pull', 'barbell'];
+  if (compoundKeywords.some(kw => name.includes(kw))) return 2.5;
+  return 1.25;
+};
+
 App.today.applyAutoProgression = function(completedSession) {
   const programme = Store.get('rulecoach_programme') || [];
   const allSessions = Store.get(sessionsKey()) || [];
@@ -1574,23 +1582,41 @@ App.today.applyAutoProgression = function(completedSession) {
     if (!templateEx) return;
 
     // Skip exercises with 0 weight (e.g. "10 Minute Bike")
-    const mainWeight = templateEx.sets[0] ? templateEx.sets[0].targetWeight : 0;
-    if (mainWeight === 0) return;
+    const templateWeight = templateEx.sets[0] ? templateEx.sets[0].targetWeight : 0;
+    if (templateWeight === 0) return;
 
+    const increment = App.today.getIncrement(ex.name);
     const doneSets = ex.sets.filter(s => s.status === 'done');
     const totalSets = ex.sets.length;
     const attemptedSets = ex.sets.filter(s => s.status !== 'skipped' && s.status !== null);
     // If all sets skipped (machine in use etc), skip progression entirely
     if (doneSets.length === 0) return;
+
+    // Use the ACTUAL weight lifted as the baseline, not the template target
+    // This handles cases where the user adjusts weight during the workout
+    const actualWeight = doneSets[0] ? doneSets[0].actualWeight : templateWeight;
+    const mainWeight = actualWeight;
     const allDone = doneSets.length === totalSets;
     const allAttemptedDone = doneSets.length === attemptedSets.length && doneSets.length > 0;
     const hitAllReps = allAttemptedDone &&
       doneSets.every(s => s.actualReps >= s.targetReps);
-    const avgRepMiss = doneSets.length > 0
+
+    // Average reps missed (positive = short, negative = exceeded)
+    const avgRepDiff = doneSets.length > 0
       ? doneSets.reduce((sum, s) => sum + (s.targetReps - s.actualReps), 0) / doneSets.length
       : 0;
+    // Average reps EXCEEDED target (for crushing-it detection)
+    const avgRepExcess = doneSets.length > 0
+      ? doneSets.reduce((sum, s) => sum + Math.max(0, s.actualReps - s.targetReps), 0) / doneSets.length
+      : 0;
+
     const rpe = ex.rpe;
     const rpeOk = !rpe || rpe <= 8;
+
+    // Target reps for scaling the miss threshold
+    const avgTargetReps = doneSets.length > 0
+      ? doneSets.reduce((sum, s) => sum + s.targetReps, 0) / doneSets.length
+      : 8;
 
     // Check if weight increased in the most recent previous session (rate limiting)
     const prevEx1 = prevSessions[0] ? prevSessions[0].exercises.find(pe => pe.name === ex.name) : null;
@@ -1612,28 +1638,54 @@ App.today.applyAutoProgression = function(completedSession) {
       }
     }
 
-    // Decision logic (skipped sets are ignored — machine may have been in use)
-    if (avgRepMiss >= 3) {
-      // DECREASE: reps well below target on completed sets
-      const oldWeight = mainWeight;
-      templateEx.sets.forEach(s => { s.targetWeight = Math.max(0, s.targetWeight - 2.5); });
-      changes.push({ exercise: ex.name, action: 'decrease', from: oldWeight, to: oldWeight - 2.5, reason: `Reps well below target (avg ${Math.round(avgRepMiss)} short)` });
+    // Scaled miss threshold: 30% of target reps (e.g. 2 reps on 6-rep set, 4 reps on 12-rep set)
+    const missThreshold = Math.max(2, Math.round(avgTargetReps * 0.3));
+
+    // Helper: set all template sets to a specific weight
+    function setTemplateWeight(weight) {
+      templateEx.sets.forEach((s, i) => {
+        // Use per-set actual weights if available, otherwise use the target weight
+        const setActual = doneSets[i] ? doneSets[i].actualWeight : weight;
+        s.targetWeight = setActual;
+      });
+    }
+
+    // Decision logic
+    if (avgRepDiff >= missThreshold) {
+      // DECREASE: reps well below target (scaled to rep range)
+      const newWeight = Math.max(0, mainWeight - increment);
+      setTemplateWeight(newWeight);
+      changes.push({ exercise: ex.name, action: 'decrease', from: mainWeight, to: newWeight, reason: `Reps well below target (avg ${Math.round(avgRepDiff)} short)` });
+    } else if (hitAllReps && avgRepExcess >= 2) {
+      // CRUSHING IT: exceeded target by 2+ reps avg — increase even if recently increased
+      const newWeight = mainWeight + increment;
+      setTemplateWeight(newWeight);
+      let reason = `Exceeded target by avg ${Math.round(avgRepExcess)} reps`;
+      if (rpe) reason += `, RPE ${rpe}`;
+      changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason });
     } else if (hitAllReps && rpeOk && !recentlyIncreased) {
       // INCREASE: all sets hit, RPE manageable, not back-to-back increase
-      const oldWeight = mainWeight;
-      templateEx.sets.forEach(s => { s.targetWeight += 2.5; });
+      const newWeight = mainWeight + increment;
+      setTemplateWeight(newWeight);
       let reason = 'All sets completed';
       if (rpe) reason += `, RPE ${rpe}`;
-      changes.push({ exercise: ex.name, action: 'increase', from: oldWeight, to: oldWeight + 2.5, reason });
+      changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason });
     } else if (hitAllReps && rpeOk && recentlyIncreased) {
-      // HOLD: consolidating recent increase
+      // HOLD: consolidating recent increase — but anchor template to actual weight
+      setTemplateWeight(mainWeight);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Consolidating recent increase' });
     } else if (hitAllReps && !rpeOk) {
-      // HOLD: RPE too high
+      // HOLD: RPE too high despite hitting reps
+      setTemplateWeight(mainWeight);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: `RPE ${rpe} — near max effort` });
-    } else if (allDone && !hitAllReps) {
-      // HOLD: completed but missed some reps
+    } else if (allDone && !hitAllReps && rpeOk) {
+      // HOLD: completed but missed some reps, RPE ok — still progressing
+      setTemplateWeight(mainWeight);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Completed but below target reps' });
+    } else if (allDone && !hitAllReps && !rpeOk) {
+      // HOLD + FLAG: missed reps AND high RPE — struggling
+      setTemplateWeight(mainWeight);
+      changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: `Below target reps, RPE ${rpe} — struggling`, struggling: true });
     }
 
     // Add plateau warning

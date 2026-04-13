@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rule Coach — Programme Editor</title>
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="top-bar">
+    <div class="top-bar-left">
+      <h1>Rule Coach <span class="top-bar-subtitle">Programme Editor</span></h1>
+    </div>
+    <div class="top-bar-right">
+      <span class="sync-indicator" id="syncIndicator">Not synced</span>
+      <select id="userSelect">
+        <option value="benn">Benn</option>
+        <option value="bonny">Bonny</option>
+      </select>
+      <button class="btn btn-sm" id="syncBtn" onclick="Editor.sync()">Sync Now</button>
+      <button class="btn btn-sm btn-primary" id="saveBtn" onclick="Editor.save()">Save</button>
+    </div>
+  </header>
+
+  <div class="editor-layout">
+    <!-- Sidebar: workout list -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>Workouts</h2>
+        <button class="btn-icon" onclick="Editor.addWorkout()" title="Add workout">+</button>
+      </div>
+      <div class="workout-list" id="workoutList"></div>
+    </aside>
+
+    <!-- Main: exercise editor -->
+    <main class="main-panel" id="mainPanel">
+      <div class="empty-state" id="emptyState">
+        <p>Select a workout from the sidebar, or sync from cloud to load your programme.</p>
+      </div>
+      <div class="workout-editor" id="workoutEditor" style="display:none;">
+        <div class="workout-header">
+          <div class="workout-header-fields">
+            <input type="text" id="workoutName" class="input-title" placeholder="Workout name">
+            <input type="text" id="workoutSubtitle" class="input-subtitle" placeholder="Subtitle (e.g. Strength Push/Pull)">
+          </div>
+          <div class="workout-meta">
+            <label>Day <select id="workoutDay">
+              <option value="Monday">Monday</option>
+              <option value="Tuesday">Tuesday</option>
+              <option value="Wednesday">Wednesday</option>
+              <option value="Thursday">Thursday</option>
+              <option value="Friday">Friday</option>
+              <option value="Saturday">Saturday</option>
+              <option value="Sunday">Sunday</option>
+            </select></label>
+            <label>Default Rest <input type="number" id="workoutRest" min="0" step="10" style="width:70px;"> s</label>
+          </div>
+          <button class="btn btn-sm btn-danger" onclick="Editor.deleteWorkout()">Delete Workout</button>
+        </div>
+
+        <div class="exercise-table-wrap">
+          <table class="exercise-table" id="exerciseTable">
+            <thead>
+              <tr>
+                <th class="col-drag"></th>
+                <th class="col-name">Exercise</th>
+                <th class="col-notes">Notes</th>
+                <th class="col-sets">Sets</th>
+                <th class="col-reps">Rep Range</th>
+                <th class="col-weight">Weight</th>
+                <th class="col-rest">Rest (s)</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody id="exerciseBody"></tbody>
+          </table>
+        </div>
+        <button class="btn btn-add-exercise" onclick="Editor.addExercise()">+ Add Exercise</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Set detail modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="Editor.closeModal(event)">
+    <div class="modal-content" id="modalContent"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>
