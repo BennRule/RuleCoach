@@ -135,13 +135,24 @@ const Sync = {
             localStorage.setItem(key, JSON.stringify(remote.data));
             Sync.setTimestamp(key, remoteTime);
           } else if (localTime > remoteTime) {
-            // Local is newer — push to remote
-            await Sync.pushKey(key);
+            // Local is newer — push to remote, BUT never overwrite remote data with empty/null
+            const local = Store.get(key);
+            const remoteData = remote.data;
+            const localIsEmpty = local === null || (Array.isArray(local) && local.length === 0);
+            const remoteHasData = remoteData !== null && !(Array.isArray(remoteData) && remoteData.length === 0);
+            if (localIsEmpty && remoteHasData) {
+              // Safety: don't wipe remote data — pull remote instead
+              localStorage.setItem(key, JSON.stringify(remoteData));
+              Sync.setTimestamp(key, remoteTime);
+            } else {
+              await Sync.pushKey(key);
+            }
           }
         } else {
-          // No remote doc — push local if we have data
+          // No remote doc — push local if we have data (but not empty arrays)
           const local = Store.get(key);
-          if (local !== null) await Sync.pushKey(key);
+          const localHasData = local !== null && !(Array.isArray(local) && local.length === 0);
+          if (localHasData) await Sync.pushKey(key);
         }
       }
       Sync._status = 'idle';
