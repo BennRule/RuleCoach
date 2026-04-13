@@ -74,6 +74,7 @@ const Sync = {
   COLLECTION: 'rulecoach',
   SYNC_KEYS: [
     'rulecoach_programme',
+    'rulecoach_programme_bonny',
     'rulecoach_sessions_benn',
     'rulecoach_sessions_bonny',
     'rulecoach_settings',
@@ -413,7 +414,7 @@ function getDefaultProgramme() {
   ];
 }
 
-function getBonnyProgramme() {
+function getDefaultBonnyProgramme() {
   return [
     {
       name: 'Full Body 1', day: 'Monday', subtitle: 'Strength + Upper', defaultRest: 60,
@@ -583,6 +584,10 @@ function getBonnyProgramme() {
   ];
 }
 
+function getBonnyProgramme() {
+  return Store.get('rulecoach_programme_bonny') || getDefaultBonnyProgramme();
+}
+
 function getBonnyWeek() {
   return Store.get('rulecoach_bonny_week') || 'A';
 }
@@ -626,7 +631,10 @@ App.init = function() {
   if (!Store.get('rulecoach_programme')) {
     Store.set('rulecoach_programme', getDefaultProgramme());
   }
-  // (Migration removed — was resetting user-edited programmes to defaults)
+  // Seed Bonny's programme if not exists
+  if (!Store.get('rulecoach_programme_bonny')) {
+    Store.set('rulecoach_programme_bonny', getDefaultBonnyProgramme());
+  }
   // Migrate sessions from old key to user-specific key
   try {
     const oldRaw = localStorage.getItem('rulecoach_sessions');
@@ -1596,7 +1604,10 @@ App.today.getIncrement = function(exerciseName) {
 };
 
 App.today.applyAutoProgression = function(completedSession) {
-  const programme = Store.get('rulecoach_programme') || [];
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const programmeKey = user === 'bonny' ? 'rulecoach_programme_bonny' : 'rulecoach_programme';
+  const programme = Store.get(programmeKey) || [];
   const allSessions = Store.get(sessionsKey()) || [];
   const workout = programme.find(w => w.name === completedSession.workoutName);
   if (!workout) return [];
@@ -1735,8 +1746,8 @@ App.today.applyAutoProgression = function(completedSession) {
     }
   });
 
-  // Save updated programme
-  Store.set('rulecoach_programme', programme);
+  // Save updated programme to correct user key
+  Store.set(programmeKey, programme);
   return changes;
 };
 

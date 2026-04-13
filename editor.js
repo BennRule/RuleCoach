@@ -30,11 +30,18 @@ const Editor = {
   selectedIndex: -1,
   dirty: false,
   COLLECTION: 'rulecoach',
-  PROGRAMME_KEY: 'rulecoach_programme',
+  get PROGRAMME_KEY() {
+    const user = document.getElementById('userSelect')?.value || 'benn';
+    return user === 'bonny' ? 'rulecoach_programme_bonny' : 'rulecoach_programme';
+  },
 
   // ---- Init ----
   init() {
-    document.getElementById('userSelect').addEventListener('change', () => Editor.sync());
+    document.getElementById('userSelect').addEventListener('change', () => {
+      Editor.selectedIndex = -1;
+      Editor.dirty = false;
+      Editor.sync();
+    });
     // Auto-sync on load
     Editor.sync();
     // Warn before leaving with unsaved changes
@@ -69,13 +76,18 @@ const Editor = {
     }
 
     try {
-      const doc = await db.collection(Editor.COLLECTION).doc(Editor.PROGRAMME_KEY).get();
+      const key = Editor.PROGRAMME_KEY;
+      const doc = await db.collection(Editor.COLLECTION).doc(key).get();
       if (doc.exists && doc.data().data) {
         Editor.programme = doc.data().data;
       } else {
         // Try localStorage fallback
-        const local = JSON.parse(localStorage.getItem(Editor.PROGRAMME_KEY) || 'null');
-        if (local) Editor.programme = local;
+        const local = JSON.parse(localStorage.getItem(key) || 'null');
+        if (local && local.length > 0) {
+          Editor.programme = local;
+        } else {
+          Editor.programme = [];
+        }
       }
       Editor.dirty = false;
       Editor.renderSidebar();
