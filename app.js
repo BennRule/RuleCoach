@@ -1380,8 +1380,7 @@ App.today.startGlobalRest = function(ei) {
   }
 
   const ex = ei !== undefined && App.activeSession ? App.activeSession.exercises[ei] : null;
-  const total = ex ? (ex.defaultRest || 120) : (App._lastRestTime || 120);
-  App._lastRestTime = total;
+  const total = ex ? (ex.defaultRest || 120) : 120;
   let remaining = total;
 
   const bar = document.getElementById('globalRestBar');
@@ -1452,9 +1451,8 @@ App.today.toggleGlobalRest = function() {
     // Tapping while running stops it
     App.today.stopGlobalRest();
   } else {
-    // Tapping while idle starts with last exercise's rest time (default 2 min)
-    const lastEi = App._lastCompletedExIdx;
-    App.today.startGlobalRest(lastEi);
+    // Manual tap always starts a default 2 min timer
+    App.today.startGlobalRest(undefined);
   }
 };
 
