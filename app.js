@@ -1622,7 +1622,6 @@ App.today.applyAutoProgression = function(completedSession) {
   }
 
   const changes = [];
-  const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
   completedSession.exercises.forEach(ex => {
