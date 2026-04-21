@@ -2621,7 +2621,10 @@ App.modal.close = function(e) {
 };
 
 App.modal.forceClose = function() {
-  document.getElementById('modalOverlay').classList.remove('show');
+  // Stop any playing videos (iframes)
+  const overlay = document.getElementById('modalOverlay');
+  overlay.querySelectorAll('iframe').forEach(f => { f.src = ''; });
+  overlay.classList.remove('show');
 };
 
 // ---- Boot ----
