@@ -1300,10 +1300,12 @@ App.today.renderActiveSession = function(container) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
     }
 
-    html += `<div class="exercise-links">
-      <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseInfo('${ex.name.replace(/'/g, "\\'")}')">Demo video</button>
-      <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseHistory('${ex.name.replace(/'/g, "\\'")}')">View history</button>
-    </div>`;
+    if (!isCardioExercise) {
+      html += `<div class="exercise-links">
+        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseInfo('${ex.name.replace(/'/g, "\\'")}')">Demo video</button>
+        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseHistory('${ex.name.replace(/'/g, "\\'")}')">View history</button>
+      </div>`;
+    }
 
     ex.sets.forEach((s, si) => {
       // Detect cardio/time-based sets — no weight input needed
