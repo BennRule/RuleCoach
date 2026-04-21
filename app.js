@@ -1077,15 +1077,77 @@ App.today._confirmSwap = function(ei, newName) {
   App.today.renderActiveSession(document.getElementById('todayContent'));
 };
 
+// Video ID lookup for exercise demos
+const EXERCISE_VIDEOS = {
+  'Barbell Bench Press': 'rT7DgCr-3pg',
+  'Lat Pulldown': 'CAwf7n6Luuc',
+  'Incline Dumbbell Press': 'nvqJUDs9EXQ',
+  'Pec Deck / Fly Machine': 'Z57CtFmRMxA',
+  'Chest Supported Dumbbell Row': 'nRWvZxbMUgE',
+  'Cable Seated Row (narrow grip)': 'GZbfZ033f74',
+  'Seated Shoulder Press Machine (Gymleco)': 'Wqq43dKoNDQ',
+  'Cable Lateral Raise (cross body)': '2OMbdPF7mz4',
+  'Rear Delt Row': 'ea7u4Q_wGEg',
+  'Preacher Curl Machine': 'fIWP-FRFNU0',
+  'Cable Tricep Pushdown (straight bar)': '68kjoCtOBbA',
+  'Cable Tricep Pushdown (rope)': 'kiuVA0gs3EI',
+  'Seated Hip Abduction': 'FMwMjpfPAM0',
+  'Leg Press': 'IZxyjW7MPJQ',
+  'Machine Hip Thrust': 'xDmFkJxPzeM',
+  'Seated Knee Extension': 'YyvSfVjQeL0',
+  'Seated Knee Extension (tri-set)': 'YyvSfVjQeL0',
+  'Romanian Deadlift': 'jEy_czb3RKA',
+  'Machine Crunch': 'jc2sMcp5a-E',
+  'Incline Chest Press Machine (plate loaded)': 'MlEM4jOzRYE',
+  'Plate Loaded Lat Pulldown': 'I7ZS5x9rdKE',
+  'Seated Row Machine (Pannatta)': 'GZbfZ033f74',
+  'Lateral Raise Machine': 'PzsMitRdI_8',
+  'Dumbbell Hammer Curl': 'zC3nLlEvin4',
+  'Laying Hamstring Curl': 'ELOCsiu8PLM',
+  '45 Degree Hyper Extension': 'qtDL7-EchTo',
+  'Leg Press (high foot placement)': 'IZxyjW7MPJQ',
+  'Hack Squat or Smith Machine Squat': 'EdtaJRBqwes',
+  'EZ Bar Bicep Curl': 'kwG2ipFRgFo',
+  'Overhead Tricep Extension': 'YbX7Wd8jQ-Q',
+  'Seated Hamstring Curl': 'ELOCsiu8PLM',
+  'Chest Supported Machine Row': 'nRWvZxbMUgE',
+  'Rear Fly Machine': 'T_jEbMHSa3Q',
+  'Standing Bicep Curl on Cable Machine': 'NFzTWp2qpiE',
+  'Standing Cable Tricep Extension': '2-LAMcpzODU',
+  'Seated Hip Adduction': 'FMwMjpfPAM0',
+  'Neutral Grip Lat Pulldown': 'CAwf7n6Luuc',
+  'Neutral Grip Seated Dumbbell Shoulder Press': 'qEwKCR5JCog',
+  'Dumbbell Lateral Raise': 'PPrzBWZDOhA',
+  'Goblet Squat': 'MeIiIdhvXT4',
+  'Glute Kickback Machine': 'xDmFkJxPzeM',
+  'Seated Chest Press': 'xUm0BiZCWlQ',
+  'Cable Cross Body Lateral Raise': '2OMbdPF7mz4',
+  'Cable Pallof Press': 'AH_QZLm_0-s',
+  'Cable Pull Through': 'ArPaAX_KmSE',
+  'Single Arm Lat Pulldown Machine': 'CAwf7n6Luuc',
+  'Machine Tricep Dip': 'aV4XnDs7PKg',
+  'Table Top Crunch': 'jc2sMcp5a-E'
+};
+
 App.today.showExerciseInfo = function(exerciseName) {
+  const videoId = EXERCISE_VIDEOS[exerciseName];
   const query = encodeURIComponent(exerciseName + ' exercise form how to');
   const ytSearch = `https://www.youtube.com/results?search_query=${query}`;
-  let html = `<h2>${exerciseName}</h2>`;
-  html += `<div style="margin:12px 0;">
-    <a href="${ytSearch}" target="_blank" rel="noopener" class="btn btn-primary btn-block" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">
-      <span style="font-size:20px;">&#9654;</span> Watch Demo Video
-    </a>
-  </div>`;
+
+  let html = `<h2 style="font-size:18px;">${exerciseName}</h2>`;
+
+  if (videoId) {
+    html += `<div style="margin:12px 0;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">
+      <iframe src="https://www.youtube.com/embed/${videoId}?rel=0" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;border-radius:8px;" allowfullscreen></iframe>
+    </div>`;
+  } else {
+    html += `<div style="margin:12px 0;">
+      <a href="${ytSearch}" target="_blank" rel="noopener" class="btn btn-primary btn-block" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span style="font-size:20px;">&#9654;</span> Search Demo Videos
+      </a>
+    </div>`;
+  }
+
   // Show description from programme notes
   const settings = Store.get('rulecoach_settings') || {};
   const user = settings.user || 'benn';
@@ -1101,6 +1163,10 @@ App.today.showExerciseInfo = function(exerciseName) {
       <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Notes</div>
       <div style="font-size:14px;color:var(--text);">${notes}</div>
     </div>`;
+  }
+
+  if (videoId) {
+    html += `<a href="${ytSearch}" target="_blank" rel="noopener" style="display:block;text-align:center;margin-top:8px;font-size:12px;color:var(--text-dim);">Search more videos</a>`;
   }
   html += `<button class="btn btn-outline btn-block" style="margin-top:12px;" onclick="App.modal.forceClose()">Close</button>`;
   App.modal.open(html);
