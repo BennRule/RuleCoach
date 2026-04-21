@@ -1078,59 +1078,61 @@ App.today._confirmSwap = function(ei, newName) {
 };
 
 // Video ID lookup for exercise demos
-const EXERCISE_VIDEOS = {
-  'Barbell Bench Press': 'rT7DgCr-3pg',
-  'Lat Pulldown': 'CAwf7n6Luuc',
-  'Incline Dumbbell Press': 'nvqJUDs9EXQ',
-  'Pec Deck / Fly Machine': 'Z57CtFmRMxA',
-  'Chest Supported Dumbbell Row': 'nRWvZxbMUgE',
-  'Cable Seated Row (narrow grip)': 'GZbfZ033f74',
-  'Seated Shoulder Press Machine (Gymleco)': 'Wqq43dKoNDQ',
-  'Cable Lateral Raise (cross body)': '2OMbdPF7mz4',
-  'Rear Delt Row': 'ea7u4Q_wGEg',
-  'Preacher Curl Machine': 'fIWP-FRFNU0',
-  'Cable Tricep Pushdown (straight bar)': '68kjoCtOBbA',
-  'Cable Tricep Pushdown (rope)': 'kiuVA0gs3EI',
-  'Seated Hip Abduction': 'HROBe0rbObg',
-  'Leg Press': 'IqjbBRNqJps',
-  'Machine Hip Thrust': 'UVucPKyQVLU',
-  'Seated Knee Extension': 'GV-l6fjYHOc',
-  'Seated Knee Extension (tri-set)': 'GV-l6fjYHOc',
-  'Romanian Deadlift': 'rPmC2YBsdKQ',
-  'Machine Crunch': 'jc2sMcp5a-E',
-  'Incline Chest Press Machine (plate loaded)': 'MlEM4jOzRYE',
-  'Plate Loaded Lat Pulldown': 'I7ZS5x9rdKE',
-  'Seated Row Machine (Pannatta)': 'GZbfZ033f74',
-  'Lateral Raise Machine': 'PzsMitRdI_8',
-  'Dumbbell Hammer Curl': 'zC3nLlEvin4',
-  'Laying Hamstring Curl': 'bvs-Y_qgghE',
-  '45 Degree Hyper Extension': 'TbvbjEoVj8Q',
-  'Leg Press (high foot placement)': 'IqjbBRNqJps',
-  'Hack Squat or Smith Machine Squat': 'EdtaJRBqwes',
-  'EZ Bar Bicep Curl': 'kwG2ipFRgFo',
-  'Overhead Tricep Extension': 'YbX7Wd8jQ-Q',
-  'Seated Hamstring Curl': 'bvs-Y_qgghE',
-  'Chest Supported Machine Row': 'nRWvZxbMUgE',
-  'Rear Fly Machine': 'T_jEbMHSa3Q',
-  'Standing Bicep Curl on Cable Machine': 'NFzTWp2qpiE',
-  'Standing Cable Tricep Extension': '2-LAMcpzODU',
-  'Seated Hip Adduction': 'HROBe0rbObg',
-  'Neutral Grip Lat Pulldown': 'CAwf7n6Luuc',
-  'Neutral Grip Seated Dumbbell Shoulder Press': 'qEwKCR5JCog',
-  'Dumbbell Lateral Raise': 'PPrzBWZDOhA',
-  'Goblet Squat': 'MeIiIdhvXT4',
-  'Glute Kickback Machine': 'xDmFkJxPzeM',
-  'Seated Chest Press': 'xUm0BiZCWlQ',
-  'Cable Cross Body Lateral Raise': '2OMbdPF7mz4',
-  'Cable Pallof Press': 'AH_QZLm_0-s',
-  'Cable Pull Through': 'ArPaAX_KmSE',
-  'Single Arm Lat Pulldown Machine': 'CAwf7n6Luuc',
-  'Machine Tricep Dip': 'aV4XnDs7PKg',
-  'Table Top Crunch': 'jc2sMcp5a-E'
+const EXERCISE_INFO = {
+  'Barbell Bench Press': { video: 'rT7DgCr-3pg', desc: 'Barbell Bench Press begins lying flat on a bench with feet flat on the floor, gripping the barbell slightly wider than shoulder width. Unrack the bar and lower it under control to the mid-chest, keeping elbows at roughly 45 degrees. Pause briefly at the chest, then press the bar back up to full lockout, driving through the chest and triceps.' },
+  'Lat Pulldown': { video: 'CAwf7n6Luuc', desc: 'Lat Pulldown begins seated at the pulldown machine with thighs secured under the pads, gripping the bar slightly wider than shoulder width. Initiate the movement by driving the elbows down and back, pulling the bar to the upper chest. Squeeze the lats at the bottom, then return the bar under control to full arm extension, feeling the stretch through the lats.' },
+  'Incline Dumbbell Press': { video: 'nvqJUDs9EXQ', desc: 'Incline Dumbbell Bench Press begins seated and lying back on an incline bench, with knees bent and heels on the floor, and a dumbbell in either hand, held just outside of the chest, with elbows bent and hands pronated. Extend the dumbbells up and in, ending with dumbbells close together over the centre of the chest and squeeze through the pecs. Then, with control, draw the dumbbells apart and down back to starting position.' },
+  'Pec Deck / Fly Machine': { video: 'Z57CtFmRMxA', desc: 'Pec Deck begins seated with your back flat against the pad, arms open wide gripping the handles at chest height. Bring the handles together in front of your chest by squeezing through the pecs, maintaining a slight bend in the elbows throughout. Pause and squeeze at the closed position, then return the handles under control to the fully stretched position.' },
+  'Chest Supported Dumbbell Row': { video: 'nRWvZxbMUgE', desc: 'Chest Supported Dumbbell Row begins with your chest against an incline bench set at approximately 30-45 degrees, a dumbbell in each hand hanging at full extension. Drive the elbows up and back, squeezing the shoulder blades together at the top. Lower the dumbbells under control to full extension, maintaining contact with the bench throughout.' },
+  'Cable Seated Row (narrow grip)': { video: 'GZbfZ033f74', desc: 'Cable Seated Row begins seated at the cable row station with feet on the footplate, knees slightly bent, gripping the narrow handle with arms fully extended. Pull the handle to the lower chest by driving the elbows back, squeezing the shoulder blades together at peak contraction. Return the handle under control to full extension, allowing the shoulders to protract and stretch at the end.' },
+  'Seated Shoulder Press Machine (Gymleco)': { video: 'Wqq43dKoNDQ', desc: 'Seated Shoulder Press begins with your back flat against the pad, gripping the handles at shoulder height with elbows bent. Press the handles overhead to full arm extension, keeping your core braced and back against the pad. Lower the handles under control back to shoulder height, maintaining tension throughout the movement.' },
+  'Cable Lateral Raise (cross body)': { video: '2OMbdPF7mz4', desc: 'Cable Cross Body Lateral Raise begins standing side-on to a low cable, grasping the handle with the far hand across the body. Raise the arm out to the side and up to approximately shoulder height, leading with the elbow, keeping a slight bend in the arm. Lower the cable under control back across the body to the starting position.' },
+  'Rear Delt Row': { video: 'ea7u4Q_wGEg', desc: 'Rear Delt Row begins in a hinged position with a flat back, holding dumbbells or a barbell with arms extended. Row the weight up with elbows flared wide, targeting the rear deltoids and upper back. Squeeze at the top, then lower under control to full extension. Use a yoga block for additional range of motion if needed.' },
+  'Preacher Curl Machine': { video: 'fIWP-FRFNU0', desc: 'Preacher Curl Machine begins seated with upper arms resting flat against the pad, gripping the handles at full arm extension. Curl the handles up by flexing at the elbow, squeezing the biceps hard at the top of the movement. Lower the handles under control back to full extension, maintaining contact with the pad throughout.' },
+  'Cable Tricep Pushdown (straight bar)': { video: '68kjoCtOBbA', desc: 'Cable Tricep Pushdown begins standing at a high cable station, gripping the straight bar with an overhand grip, elbows pinned to your sides. Push the bar down by extending the elbows until arms are fully straight, squeezing the triceps at the bottom. Return the bar under control to the starting position, keeping the elbows stationary throughout.' },
+  'Cable Tricep Pushdown (rope)': { video: 'kiuVA0gs3EI', desc: 'Cable Tricep Pushdown with Rope begins standing at a high cable station, gripping the rope attachment with a neutral grip, elbows pinned to your sides. Push the rope down by extending the elbows, splitting the rope apart at the bottom and squeezing the triceps. Return the rope under control, keeping the upper arms stationary.' },
+  'Seated Hip Abduction': { video: 'HROBe0rbObg', desc: 'Seated Hip Abduction begins seated in the machine with the outside of your thighs against the pads, feet flat on the footrests. Push the pads outward by driving the knees apart, squeezing the outer glutes at full range of motion. Return the pads inward under control to the starting position.' },
+  'Leg Press': { video: 'IqjbBRNqJps', desc: 'Leg Press begins seated in the machine with feet shoulder-width apart on the platform, toes slightly turned out. Lower the platform by bending the knees toward the chest, keeping the lower back flat against the pad. Press the platform back up by driving through the heels and midfoot until the legs are almost fully extended, without locking the knees.' },
+  'Machine Hip Thrust': { video: 'UVucPKyQVLU', desc: 'Machine Hip Thrust begins seated with your upper back against the pad and the resistance pad across your hips. Drive the hips up to full extension by squeezing the glutes hard at the top, creating a straight line from knees to shoulders. Lower the hips under control back to the starting position.' },
+  'Seated Knee Extension': { video: 'GV-l6fjYHOc', desc: 'Seated Knee Extension begins seated in the machine with your shins against the pad and back flat against the seat. Extend the legs by straightening the knees, squeezing the quadriceps at full extension. Lower the weight under control back to the starting position without letting the weight stack touch.' },
+  'Seated Knee Extension (tri-set)': { video: 'GV-l6fjYHOc', desc: 'Seated Knee Extension Tri-Set uses three different positions in sequence: bottom range, mid range, and top range. Perform reps in each partial range before moving to the next, keeping constant tension on the quadriceps throughout all three positions.' },
+  'Romanian Deadlift': { video: 'rPmC2YBsdKQ', desc: 'Romanian Deadlift begins standing tall with a barbell held at hip height, feet hip-width apart. Hinge at the hips and push them back, lowering the barbell along the thighs and shins while maintaining a flat back and slight knee bend. Lower until you feel a deep stretch in the hamstrings, then drive the hips forward to return to standing, keeping the bar close to the body throughout.' },
+  'Machine Crunch': { video: 'jc2sMcp5a-E', desc: 'Machine Crunch begins seated in the crunch machine with your chest against the pad and hands gripping the handles. Crunch forward by flexing the spine, driving the ribs toward the hips and squeezing the abdominals. Return under control to the starting position without fully releasing the tension.' },
+  'Incline Chest Press Machine (plate loaded)': { video: 'MlEM4jOzRYE', desc: 'Incline Chest Press Machine begins seated with your back against the inclined pad, gripping the handles at chest height. Press the handles forward and up to full arm extension, squeezing through the upper chest. Return the handles under control to the starting position, feeling the stretch across the chest.' },
+  'Plate Loaded Lat Pulldown': { video: 'I7ZS5x9rdKE', desc: 'Plate Loaded Lat Pulldown begins seated with thighs secured, gripping the handles at full arm extension. Pull the handles down by driving the elbows toward the hips, squeezing the lats at the bottom of the movement. Return the handles under control to full extension, feeling the stretch through the lats at the top.' },
+  'Seated Row Machine (Pannatta)': { video: 'GZbfZ033f74', desc: 'Seated Row Machine begins with your chest supported against the pad, arms fully extended gripping the handles. Pull the handles back by driving the elbows behind the body, squeezing the shoulder blades together at peak contraction. Return the handles under control to full extension, allowing a complete stretch.' },
+  'Lateral Raise Machine': { video: 'PzsMitRdI_8', desc: 'Lateral Raise Machine begins seated with your arms against the pads at your sides. Raise the arms out to the side until they reach approximately shoulder height, leading with the elbows. Lower the arms under control back to the starting position without letting the weight stack rest.' },
+  'Dumbbell Hammer Curl': { video: 'zC3nLlEvin4', desc: 'Dumbbell Hammer Curl begins standing with a dumbbell in each hand at your sides, palms facing inward in a neutral grip. Curl the dumbbells up by flexing at the elbow, keeping the wrists neutral throughout. Squeeze the biceps and brachialis at the top, then lower under control to full extension.' },
+  'Laying Hamstring Curl': { video: 'bvs-Y_qgghE', desc: 'Laying Hamstring Curl begins lying face down on the machine with the pad positioned just above the ankles and hips pressed into the bench. Curl the pad up toward the glutes by flexing at the knees, squeezing the hamstrings at the top. Lower the weight under control back to full extension without letting the weight stack touch.' },
+  '45 Degree Hyper Extension': { video: 'TbvbjEoVj8Q', desc: '45 Degree Hyper Extension begins with your hips on the pad, feet anchored, and body hinged forward. Hold a dumbbell at the chest for added resistance. Extend at the hips to raise the torso until the body forms a straight line, squeezing the hamstrings and glutes. Lower under control back to the starting position.' },
+  'Leg Press (high foot placement)': { video: 'IqjbBRNqJps', desc: 'Leg Press with High Foot Placement begins seated with feet placed high and wide on the platform, targeting the glutes and hamstrings more than a standard placement. Lower the platform by bending the knees, keeping the lower back flat. Press back up through the heels to full extension.' },
+  'Hack Squat or Smith Machine Squat': { video: 'EdtaJRBqwes', desc: 'Hack Squat begins standing in the machine with shoulders under the pads, feet shoulder-width apart on the platform. Lower your body by bending the knees and hips, descending to full depth while keeping the torso upright. Drive back up through the quads to full extension.' },
+  'EZ Bar Bicep Curl': { video: 'kwG2ipFRgFo', desc: 'EZ Bar Bicep Curl begins standing with feet hip-width apart, gripping the EZ bar on the angled portions with an underhand grip. Curl the bar up by flexing at the elbows, keeping the upper arms stationary. Squeeze the biceps at the top, then lower the bar under control to full extension.' },
+  'Overhead Tricep Extension': { video: 'YbX7Wd8jQ-Q', desc: 'Overhead Tricep Extension begins standing or seated, holding a cable attachment or dumbbell overhead with arms extended. Lower the weight behind the head by bending at the elbows, keeping the upper arms close to the ears. Extend the arms back to the starting position by squeezing the triceps.' },
+  'Seated Hamstring Curl': { video: 'bvs-Y_qgghE', desc: 'Seated Hamstring Curl begins seated with the pad positioned above the ankles and thighs secured. Curl the pad down and back by flexing at the knees, squeezing the hamstrings at the bottom. Return the weight under control to the starting position.' },
+  'Chest Supported Machine Row': { video: 'nRWvZxbMUgE', desc: 'Chest Supported Machine Row begins with your chest against the pad, arms fully extended gripping the handles. Pull the handles back by driving the elbows behind the body, squeezing the shoulder blades together. Return under control to full extension.' },
+  'Rear Fly Machine': { video: 'T_jEbMHSa3Q', desc: 'Rear Fly Machine begins seated facing the machine with arms extended forward, gripping the handles at chest height. Open the arms out to the sides by squeezing the rear deltoids and upper back. Return the handles under control to the starting position.' },
+  'Standing Bicep Curl on Cable Machine': { video: 'NFzTWp2qpiE', desc: 'Standing Bicep Curl on Cable Machine begins standing facing a low cable, gripping the straight bar or rope attachment with arms extended. Curl the attachment up by flexing at the elbows, squeezing the biceps at the top. Lower under control to full extension.' },
+  'Standing Cable Tricep Extension': { video: '2-LAMcpzODU', desc: 'Standing Cable Tricep Extension begins at a high cable station, gripping the attachment with elbows pinned to your sides. Extend the arms by pushing down, squeezing the triceps at full lockout. Return under control to the starting position.' },
+  'Seated Hip Adduction': { video: 'HROBe0rbObg', desc: 'Seated Hip Adduction begins seated in the machine with the inside of your thighs against the pads, legs spread. Squeeze the pads inward by driving the knees together, contracting the inner thighs. Return the pads outward under control to the starting position.' },
+  'Neutral Grip Lat Pulldown': { video: 'CAwf7n6Luuc', desc: 'Neutral Grip Lat Pulldown begins seated at the pulldown machine with thighs secured, gripping the neutral-grip handles with palms facing each other. Pull the handles down to the upper chest by driving the elbows down and back. Return under control to full extension.' },
+  'Neutral Grip Seated Dumbbell Shoulder Press': { video: 'qEwKCR5JCog', desc: 'Neutral Grip Seated Dumbbell Shoulder Press begins seated on a bench with back support, holding dumbbells at shoulder height with palms facing each other. Press the dumbbells overhead to full arm extension. Lower under control back to shoulder height.' },
+  'Dumbbell Lateral Raise': { video: 'PPrzBWZDOhA', desc: 'Dumbbell Lateral Raise begins standing with a dumbbell in each hand at your sides. Raise the arms out to the sides until they reach shoulder height, leading with the elbows and keeping a slight bend in the arms. Lower under control to the starting position.' },
+  'Goblet Squat': { video: 'MeIiIdhvXT4', desc: 'Goblet Squat begins standing with feet shoulder-width apart, holding a dumbbell vertically at chest height with both hands cupping the top end. Squat down by pushing the hips back and bending the knees, keeping the chest tall and elbows inside the knees. Drive back up through the heels to standing.' },
+  'Glute Kickback Machine': { video: 'xDmFkJxPzeM', desc: 'Glute Kickback Machine begins with one foot on the platform and the other against the pad. Drive the pad back by extending the hip, squeezing the glute at full extension. Return under control to the starting position. Perform all reps on one side before switching.' },
+  'Seated Chest Press': { video: 'xUm0BiZCWlQ', desc: 'Seated Chest Press begins seated with your back against the pad, gripping the handles at chest height with elbows bent. Press the handles forward to full arm extension, squeezing through the chest. Return under control to the starting position.' },
+  'Cable Cross Body Lateral Raise': { video: '2OMbdPF7mz4', desc: 'Cable Cross Body Lateral Raise begins standing side-on to a low cable, grasping the handle with the far hand across the body. Raise the arm out to the side to shoulder height, leading with the elbow. Lower under control back across the body.' },
+  'Cable Pallof Press': { video: 'AH_QZLm_0-s', desc: 'Cable Pallof Press begins standing side-on to a cable machine, holding the handle at chest height with both hands. Press the handle straight out in front of the chest, resisting the rotation force from the cable. Hold briefly at full extension, then return the hands to the chest. Keep the core braced throughout.' },
+  'Cable Pull Through': { video: 'ArPaAX_KmSE', desc: 'Cable Pull Through begins standing facing away from a low cable, straddling the cable with feet wider than hip-width, gripping the rope attachment between the legs. Hinge at the hips, pushing them back while keeping a flat back. Drive the hips forward to standing by squeezing the glutes, pulling the cable through.' },
+  'Single Arm Lat Pulldown Machine': { video: 'CAwf7n6Luuc', desc: 'Single Arm Lat Pulldown begins seated at the machine, gripping one handle with a full grip. Pull the handle down by driving the elbow toward the hip, squeezing the lat at the bottom. Return under control to full extension. Perform all reps on one side before switching.' },
+  'Machine Tricep Dip': { video: 'aV4XnDs7PKg', desc: 'Machine Tricep Dip begins seated in the dip machine with hands gripping the handles at your sides. Press the handles down by extending the elbows, squeezing the triceps at full lockout. Return under control to the starting position.' },
+  'Table Top Crunch': { video: 'jc2sMcp5a-E', desc: 'Table Top Crunch begins lying on your back with knees bent at 90 degrees, shins parallel to the floor. Crunch up by lifting the shoulders off the ground, reaching toward the knees and squeezing the abdominals. Lower under control back to the starting position.' }
 };
 
 App.today.showExerciseInfo = function(exerciseName) {
-  const videoId = EXERCISE_VIDEOS[exerciseName];
+  const info = EXERCISE_INFO[exerciseName] || {};
+  const videoId = info.video;
+  const desc = info.desc || '';
   const query = encodeURIComponent(exerciseName + ' exercise form how to');
   const ytSearch = `https://www.youtube.com/results?search_query=${query}`;
 
@@ -1148,20 +1150,10 @@ App.today.showExerciseInfo = function(exerciseName) {
     </div>`;
   }
 
-  // Show description from programme notes
-  const settings = Store.get('rulecoach_settings') || {};
-  const user = settings.user || 'benn';
-  const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
-  let notes = '';
-  programme.forEach(w => {
-    w.exercises.forEach(ex => {
-      if (ex.name === exerciseName && ex.notes) notes = ex.notes;
-    });
-  });
-  if (notes) {
+  if (desc) {
     html += `<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Notes</div>
-      <div style="font-size:14px;color:var(--text);">${notes}</div>
+      <div style="font-size:12px;color:var(--accent-light);font-weight:600;margin-bottom:6px;">Description</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.5;">${desc}</div>
     </div>`;
   }
 
