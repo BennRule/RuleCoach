@@ -665,7 +665,6 @@ App.init = function() {
   // Load settings into UI
   const settings = Store.get('rulecoach_settings');
   document.getElementById('settingUnits').value = settings.units || 'kg';
-  document.getElementById('settingApiKey').value = settings.apiKey || '';
 
   // Check for in-progress session
   const saved = Store.get('rulecoach_active_session');
@@ -2384,90 +2383,6 @@ App.programme.reset = function() {
   }
 };
 
-// ---- AI COACH ----
-App.ai = {};
-
-const AI_SYSTEM_PROMPT = `You are an expert strength and hypertrophy coach. The user trains 5 days per week on an Upper/Lower/Upper split, focusing on progressive overload for muscle gain and strength. They use a mix of barbells, dumbbells, cables and machines. Give specific, actionable recommendations with exact weights in kg. Be direct and concise.`;
-
-App.ai.call = async function(userPrompt) {
-  const settings = Store.get('rulecoach_settings') || {};
-  const apiKey = settings.apiKey || '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';
-
-
-  document.getElementById('aiLoading').classList.add('show');
-  document.getElementById('aiResponse').classList.remove('show');
-  document.getElementById('aiError').classList.remove('show');
-
-  try {
-    const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'https://bennrule.github.io/RuleCoach/',
-        'X-Title': 'RuleCoach'
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.3-70b-instruct:free',
-        max_tokens: 2048,
-        messages: [
-          { role: 'system', content: AI_SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt }
-        ]
-      })
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API error: ${resp.status}`);
-    }
-
-    const data = await resp.json();
-    const text = data.choices?.[0]?.message?.content || 'No response received.';
-
-    document.getElementById('aiLoading').classList.remove('show');
-    document.getElementById('aiResponse').textContent = text;
-    document.getElementById('aiResponse').classList.add('show');
-    return text;
-  } catch (e) {
-    document.getElementById('aiLoading').classList.remove('show');
-    App.ai.showError(e.message);
-    return null;
-  }
-};
-
-App.ai.showError = function(msg) {
-  const el = document.getElementById('aiError');
-  el.textContent = msg;
-  el.classList.add('show');
-};
-
-App.ai.analyse = function() {
-  const sessions = Store.get(sessionsKey()) || [];
-  if (sessions.length === 0) {
-    App.ai.showError('No sessions recorded yet. Complete a workout first.');
-    return;
-  }
-  const last = sessions[sessions.length - 1];
-  App.ai.call(`Analyse my last training session and give me a performance summary, what to push next time (specific weights), and recovery notes.\n\nSession data:\n${JSON.stringify(last, null, 2)}`);
-};
-
-App.ai.overload = function() {
-  const sessions = Store.get(sessionsKey()) || [];
-  if (sessions.length === 0) {
-    App.ai.showError('No sessions recorded yet.');
-    return;
-  }
-  const recent = sessions.slice(-20); // last ~4 weeks
-  App.ai.call(`Based on my recent training sessions, give me per-exercise progressive overload recommendations. Flag any plateaus (same weight 3+ sessions). Suggest a deload if needed.\n\nRecent sessions:\n${JSON.stringify(recent, null, 2)}`);
-};
-
-App.ai.newBlock = function() {
-  const sessions = Store.get(sessionsKey()) || [];
-  const programme = Store.get('rulecoach_programme') || [];
-  App.ai.call(`Design a fresh 4-week training block based on my training history and current programme. Keep the 5-day Upper/Lower/Upper split structure. Provide specific exercises, sets, reps, and weights in kg.\n\nCurrent programme:\n${JSON.stringify(programme, null, 2)}\n\nRecent sessions (last 20):\n${JSON.stringify(sessions.slice(-20), null, 2)}`);
-};
-
 // ---- SETTINGS ----
 App.settings = {};
 
@@ -2476,7 +2391,6 @@ App.settings.save = function() {
   const settings = {
     user: existing.user || 'benn',
     units: document.getElementById('settingUnits').value,
-    apiKey: document.getElementById('settingApiKey').value.trim()
   };
   Store.set('rulecoach_settings', settings);
   const btn = document.querySelector('#screen-settings .btn-primary');

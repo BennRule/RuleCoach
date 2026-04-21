@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v24';
+const CACHE_NAME = 'rulecoach-v25';
 
 // Force activate when told to skip waiting
 self.addEventListener('message', e => {
@@ -39,17 +39,6 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Network-first for OpenRouter API
-  if (url.hostname === 'openrouter.ai') {
-    e.respondWith(
-      fetch(e.request).catch(() =>
-        new Response(JSON.stringify({ error: 'Offline — AI coaching unavailable' }), {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      )
-    );
-    return;
-  }
 
   // Network-first for own static assets, cache-first for everything else
   const isOwnAsset = url.pathname.endsWith('.html') || url.pathname.endsWith('.js') ||
