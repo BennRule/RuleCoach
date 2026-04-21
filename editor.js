@@ -40,10 +40,13 @@ const Editor = {
     document.getElementById('userSelect').addEventListener('change', () => {
       Editor.selectedIndex = -1;
       Editor.dirty = false;
+      Editor.sessionCache = null; // Clear session cache on user switch
       Editor.sync();
     });
     // Auto-sync on load
     Editor.sync();
+    // Init AI panel
+    Editor.initAI();
     // Warn before leaving with unsaved changes
     window.addEventListener('beforeunload', e => {
       if (Editor.dirty) { e.preventDefault(); e.returnValue = ''; }
@@ -281,6 +284,25 @@ const Editor = {
         <td class="col-actions"><button class="btn-remove-exercise" onclick="Editor.removeExercise(${ei})" title="Remove">&times;</button></td>
       `;
 
+      // Make exercise name clickable for history
+      const nameInput = tr.querySelector('.input-name');
+      nameInput.classList.add('clickable-name');
+      nameInput.addEventListener('click', (e) => {
+        // Only trigger history on single click when not actively editing
+        if (nameInput.dataset.editing) return;
+        const name = nameInput.value.trim();
+        if (name && name !== 'New Exercise') {
+          Editor.showExerciseHistory(name);
+        }
+      });
+      nameInput.addEventListener('dblclick', () => {
+        nameInput.dataset.editing = 'true';
+        nameInput.select();
+      });
+      nameInput.addEventListener('blur', () => {
+        delete nameInput.dataset.editing;
+      });
+
       // Inline change tracking
       tr.querySelectorAll('input').forEach(inp => {
         inp.addEventListener('input', () => Editor.markDirty());
@@ -466,6 +488,548 @@ const Editor = {
   closeModal(e) {
     if (e && e.target !== e.currentTarget) return;
     document.getElementById('modalOverlay').classList.remove('show');
+  },
+
+  // ============================================================
+  // Right Panel — Toggle & Tabs
+  // ============================================================
+  rightPanelOpen: true,
+  currentRightTab: 'history',
+  sessionCache: null,
+  selectedExerciseName: null,
+  aiSuggestions: null,
+
+  toggleRightPanel() {
+    const panel = document.getElementById('rightPanel');
+    const toggle = document.getElementById('rightPanelToggle');
+    Editor.rightPanelOpen = !Editor.rightPanelOpen;
+    if (Editor.rightPanelOpen) {
+      panel.classList.remove('collapsed');
+      toggle.classList.add('hidden');
+      toggle.innerHTML = '&#9654;';
+    } else {
+      panel.classList.add('collapsed');
+      toggle.classList.remove('hidden');
+      toggle.innerHTML = '&#9664;';
+    }
+  },
+
+  switchRightTab(tab) {
+    Editor.currentRightTab = tab;
+    document.querySelectorAll('.right-panel-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tab === tab);
+    });
+    document.getElementById('tabHistory').style.display = tab === 'history' ? '' : 'none';
+    document.getElementById('tabAI').style.display = tab === 'ai' ? '' : 'none';
+  },
+
+  // ============================================================
+  // Exercise History
+  // ============================================================
+  get SESSIONS_KEY() {
+    const user = document.getElementById('userSelect')?.value || 'benn';
+    return `rulecoach_sessions_${user}`;
+  },
+
+  async loadSessions() {
+    const key = Editor.SESSIONS_KEY;
+    // Try Firebase first
+    if (db) {
+      try {
+        const doc = await db.collection(Editor.COLLECTION).doc(key).get();
+        if (doc.exists && doc.data().data) {
+          Editor.sessionCache = doc.data().data;
+          return;
+        }
+      } catch (e) {
+        console.warn('Firebase session load failed, trying localStorage:', e.message);
+      }
+    }
+    // localStorage fallback
+    const local = localStorage.getItem(key);
+    Editor.sessionCache = local ? JSON.parse(local) : {};
+  },
+
+  async showExerciseHistory(exerciseName) {
+    Editor.selectedExerciseName = exerciseName;
+
+    // Ensure right panel is open on history tab
+    if (!Editor.rightPanelOpen) Editor.toggleRightPanel();
+    Editor.switchRightTab('history');
+
+    document.getElementById('historyEmpty').style.display = 'none';
+    document.getElementById('historyContent').style.display = 'block';
+    document.getElementById('historyExName').textContent = exerciseName;
+    document.getElementById('historyStats').innerHTML = '<span style="color:var(--text-dim);font-size:12px;">Loading...</span>';
+    document.getElementById('historySessions').innerHTML = '';
+
+    // Load sessions if not cached
+    if (!Editor.sessionCache) {
+      await Editor.loadSessions();
+    }
+
+    const sessions = Editor.sessionCache || {};
+    // Find sessions containing this exercise
+    const matches = [];
+
+    // Sessions is an object keyed by date string or session ID
+    // Each session has a .exercises array (matching the main app structure)
+    Object.keys(sessions).forEach(sessionKey => {
+      const session = sessions[sessionKey];
+      if (!session) return;
+
+      // The main app stores sessions as objects with exercises array
+      // Each exercise has: name, sets (array with reps, weight, done, rpe, skipped)
+      const exercises = session.exercises || session;
+      if (!Array.isArray(exercises)) return;
+
+      exercises.forEach(ex => {
+        if (!ex || !ex.name) return;
+        // Fuzzy match: case-insensitive, trim whitespace
+        if (ex.name.trim().toLowerCase() === exerciseName.trim().toLowerCase()) {
+          matches.push({
+            date: session.date || session.completedAt || sessionKey,
+            sessionKey: sessionKey,
+            exercise: ex,
+            status: ex.skipped ? 'skipped' : 'done'
+          });
+        }
+      });
+    });
+
+    // Sort by date descending, take last 10
+    matches.sort((a, b) => {
+      const da = new Date(a.date);
+      const db = new Date(b.date);
+      return db - da;
+    });
+    const last10 = matches.slice(0, 10);
+
+    // Calculate stats
+    let maxWeight = 0;
+    let bestVolume = 0;
+    let bestVolumeIdx = -1;
+
+    last10.forEach((m, i) => {
+      const sets = m.exercise.sets || [];
+      let sessionVolume = 0;
+      sets.forEach(s => {
+        const w = parseFloat(s.weight) || 0;
+        const r = parseInt(s.reps) || 0;
+        if (w > maxWeight) maxWeight = w;
+        sessionVolume += w * r;
+      });
+      if (sessionVolume > bestVolume) {
+        bestVolume = sessionVolume;
+        bestVolumeIdx = i;
+      }
+    });
+
+    // Render stats
+    document.getElementById('historyStats').innerHTML = `
+      <div class="history-stat">
+        <div class="history-stat-label">Max Weight</div>
+        <div class="history-stat-value best">${maxWeight > 0 ? maxWeight + 'kg' : '-'}</div>
+      </div>
+      <div class="history-stat">
+        <div class="history-stat-label">Best Volume</div>
+        <div class="history-stat-value best">${bestVolume > 0 ? bestVolume.toLocaleString() + 'kg' : '-'}</div>
+      </div>
+      <div class="history-stat">
+        <div class="history-stat-label">Sessions</div>
+        <div class="history-stat-value">${matches.length}</div>
+      </div>
+    `;
+
+    // Render chart
+    Editor.renderHistoryChart(last10.slice().reverse());
+
+    // Render session cards
+    const container = document.getElementById('historySessions');
+    container.innerHTML = '';
+
+    if (last10.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-dim);font-size:13px;text-align:center;padding:16px 0;">No session history found for this exercise.</p>';
+      return;
+    }
+
+    last10.forEach((m, i) => {
+      const card = document.createElement('div');
+      card.className = 'history-session-card' + (i === bestVolumeIdx ? ' best-volume' : '');
+
+      const dateStr = Editor.formatSessionDate(m.date);
+      const sets = m.exercise.sets || [];
+      const setsHtml = sets.map((s, si) => {
+        const w = s.weight || s.targetWeight || '?';
+        const r = s.reps || s.targetReps || '?';
+        return `Set ${si + 1}: ${w}kg x ${r}`;
+      }).join('<br>');
+
+      const rpeVal = sets.length > 0 ? sets[sets.length - 1].rpe : null;
+
+      let badges = '';
+      badges += `<span class="session-badge ${m.status}">${m.status}</span>`;
+      if (i === bestVolumeIdx) badges += '<span class="session-badge best-vol">Best Volume</span>';
+      // Check if this session has max weight
+      const sessionMax = Math.max(0, ...sets.map(s => parseFloat(s.weight) || 0));
+      if (sessionMax === maxWeight && maxWeight > 0) badges += '<span class="session-badge max-wt">Max Weight</span>';
+
+      card.innerHTML = `
+        <div class="session-date">${dateStr} ${badges}</div>
+        <div class="session-sets">${setsHtml}</div>
+        ${rpeVal ? `<div class="session-rpe">RPE: ${rpeVal}</div>` : ''}
+        <button class="session-delete" onclick="Editor.deleteSessionExercise('${escHtml(m.sessionKey)}', '${escHtml(m.exercise.name)}')" title="Delete this entry">&times;</button>
+      `;
+
+      container.appendChild(card);
+    });
+  },
+
+  formatSessionDate(dateStr) {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) {
+      return dateStr;
+    }
+  },
+
+  renderHistoryChart(sessions) {
+    const canvas = document.getElementById('historyChart');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.parentElement.clientWidth - 24;
+    const h = 160;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+
+    // Clear
+    ctx.clearRect(0, 0, w, h);
+
+    if (sessions.length < 2) {
+      ctx.fillStyle = '#8888aa';
+      ctx.font = '12px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Need at least 2 sessions for chart', w / 2, h / 2);
+      return;
+    }
+
+    // Data: max weight per session
+    const points = sessions.map(m => {
+      const sets = m.exercise.sets || [];
+      return Math.max(0, ...sets.map(s => parseFloat(s.weight) || 0));
+    });
+
+    const minVal = Math.min(...points) * 0.9;
+    const maxVal = Math.max(...points) * 1.05;
+    const range = maxVal - minVal || 1;
+
+    const padX = 40, padY = 20;
+    const plotW = w - padX - 16;
+    const plotH = h - padY * 2;
+
+    // Grid lines
+    ctx.strokeStyle = '#2a2a45';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) {
+      const y = padY + (plotH / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(padX, y);
+      ctx.lineTo(w - 16, y);
+      ctx.stroke();
+
+      // Labels
+      const val = maxVal - (range / 4) * i;
+      ctx.fillStyle = '#8888aa';
+      ctx.font = '10px -apple-system, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(val.toFixed(0) + 'kg', padX - 6, y + 3);
+    }
+
+    // Line
+    ctx.strokeStyle = '#7c3aed';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    points.forEach((val, i) => {
+      const x = padX + (plotW / (points.length - 1)) * i;
+      const y = padY + plotH - ((val - minVal) / range) * plotH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Dots
+    points.forEach((val, i) => {
+      const x = padX + (plotW / (points.length - 1)) * i;
+      const y = padY + plotH - ((val - minVal) / range) * plotH;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#7c3aed';
+      ctx.fill();
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+  },
+
+  async deleteSessionExercise(sessionKey, exerciseName) {
+    if (!confirm(`Delete "${exerciseName}" data from session ${Editor.formatSessionDate(sessionKey)}?`)) return;
+
+    if (!Editor.sessionCache) await Editor.loadSessions();
+    const sessions = Editor.sessionCache;
+    if (!sessions || !sessions[sessionKey]) return;
+
+    const session = sessions[sessionKey];
+    const exercises = session.exercises || session;
+    if (!Array.isArray(exercises)) return;
+
+    // Find and remove the exercise
+    const idx = exercises.findIndex(ex => ex && ex.name && ex.name.trim().toLowerCase() === exerciseName.trim().toLowerCase());
+    if (idx === -1) return;
+
+    if (exercises.length <= 1) {
+      // Remove the entire session
+      delete sessions[sessionKey];
+    } else {
+      exercises.splice(idx, 1);
+    }
+
+    // Save back
+    const key = Editor.SESSIONS_KEY;
+    localStorage.setItem(key, JSON.stringify(sessions));
+    if (db) {
+      try {
+        await db.collection(Editor.COLLECTION).doc(key).set({
+          data: sessions,
+          updatedAt: new Date().toISOString()
+        });
+      } catch (e) {
+        console.warn('Failed to sync session deletion to Firebase:', e.message);
+      }
+    }
+
+    // Refresh history view
+    Editor.showExerciseHistory(exerciseName);
+  },
+
+  // ============================================================
+  // AI Programme Evaluation
+  // ============================================================
+  initAI() {
+    const savedKey = localStorage.getItem('rulecoach_editor_apikey');
+    if (savedKey) {
+      document.getElementById('aiApiKey').value = savedKey;
+    }
+    // Save key on change
+    document.getElementById('aiApiKey').addEventListener('change', () => {
+      localStorage.setItem('rulecoach_editor_apikey', document.getElementById('aiApiKey').value.trim());
+    });
+  },
+
+  async aiEvaluate() {
+    const apiKey = document.getElementById('aiApiKey').value.trim();
+    if (!apiKey) {
+      alert('Please enter your Anthropic API key.');
+      return;
+    }
+    localStorage.setItem('rulecoach_editor_apikey', apiKey);
+
+    const goal = document.getElementById('aiGoal').value;
+    const btn = document.getElementById('aiEvalBtn');
+    const responseEl = document.getElementById('aiResponse');
+    const applyWrap = document.getElementById('aiApplyWrap');
+
+    btn.disabled = true;
+    btn.textContent = 'Evaluating...';
+    applyWrap.style.display = 'none';
+    Editor.aiSuggestions = null;
+    responseEl.innerHTML = '<div class="ai-loading"><div class="ai-loading-spinner"></div><br>Analysing your programme...</div>';
+
+    // Build context: programme + recent history
+    Editor.commitCurrentWorkout();
+    if (!Editor.sessionCache) await Editor.loadSessions();
+
+    const programmeJson = JSON.stringify(Editor.programme, null, 2);
+    const sessionsJson = Editor.sessionCache ? JSON.stringify(Editor.sessionCache, null, 2).slice(0, 12000) : '{}';
+
+    const goalLabels = { hypertrophy: 'Hypertrophy (muscle growth)', strength: 'Strength (1RM improvement)', general: 'General Fitness', fatloss: 'Fat Loss' };
+    const goalLabel = goalLabels[goal] || goal;
+
+    const systemPrompt = `You are an expert strength & conditioning coach reviewing a workout programme. The user's goal is: ${goalLabel}.
+
+Analyse the programme and recent session history. Provide:
+1. An overall programme assessment (2-3 sentences)
+2. Per-exercise recommendations — for each exercise, note if volume/intensity should change, if exercise swaps would help, or if rep ranges need adjusting
+3. Suggested modifications
+
+After your text analysis, output a JSON block (fenced with \`\`\`json) containing structured suggestions that can be programmatically applied. Use this exact schema:
+\`\`\`json
+{
+  "suggestions": [
+    {
+      "workoutIndex": 0,
+      "exerciseIndex": 0,
+      "action": "modify",
+      "changes": {
+        "sets": [{"targetReps": 10, "targetWeight": 30, "repRange": "8-12"}],
+        "notes": "optional note"
+      }
+    },
+    {
+      "workoutIndex": 0,
+      "exerciseIndex": -1,
+      "action": "add",
+      "exercise": {
+        "name": "New Exercise",
+        "notes": "",
+        "defaultRest": 120,
+        "sets": [{"targetReps": 10, "targetWeight": 20, "repRange": "8-12"}]
+      }
+    },
+    {
+      "workoutIndex": 0,
+      "exerciseIndex": 2,
+      "action": "remove"
+    }
+  ]
+}
+\`\`\`
+Actions: "modify" (update sets/notes), "add" (insert new exercise, exerciseIndex=-1 for end), "remove" (delete exercise).
+Only suggest changes that meaningfully improve the programme for the stated goal.`;
+
+    const userMessage = `Here is my current workout programme:\n\n${programmeJson}\n\nHere are my recent session logs (truncated):\n\n${sessionsJson}\n\nPlease evaluate this programme for the goal: ${goalLabel}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }]
+        })
+      });
+
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(`API error ${res.status}: ${errBody.slice(0, 200)}`);
+      }
+
+      const data = await res.json();
+      const text = data.content?.[0]?.text || 'No response received.';
+
+      // Parse out JSON suggestions if present
+      const jsonMatch = text.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
+            Editor.aiSuggestions = parsed.suggestions;
+            applyWrap.style.display = '';
+          }
+        } catch (e) {
+          console.warn('Failed to parse AI suggestions JSON:', e.message);
+        }
+      }
+
+      // Render response — convert markdown-ish text to HTML
+      const htmlContent = Editor.renderAIResponse(text);
+      responseEl.innerHTML = `<div class="ai-response-content">${htmlContent}</div>`;
+
+    } catch (e) {
+      responseEl.innerHTML = `<div class="ai-response-empty" style="color:var(--danger);">Error: ${escHtml(e.message)}</div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Evaluate Programme';
+    }
+  },
+
+  renderAIResponse(text) {
+    // Strip the JSON block from display
+    let clean = text.replace(/```json\s*[\s\S]*?```/g, '');
+    // Basic markdown to HTML
+    clean = escHtml(clean);
+    // Headers
+    clean = clean.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+    clean = clean.replace(/^## (.+)$/gm, '<h4>$1</h4>');
+    clean = clean.replace(/^# (.+)$/gm, '<h4>$1</h4>');
+    // Bold
+    clean = clean.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Bullet lists
+    clean = clean.replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>');
+    clean = clean.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // Numbered lists
+    clean = clean.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    // Paragraphs (double newlines)
+    clean = clean.replace(/\n\n/g, '</p><p>');
+    clean = '<p>' + clean + '</p>';
+    // Clean up empty paragraphs
+    clean = clean.replace(/<p>\s*<\/p>/g, '');
+    return clean;
+  },
+
+  aiApplySuggestions() {
+    if (!Editor.aiSuggestions || !Array.isArray(Editor.aiSuggestions)) return;
+    const count = Editor.aiSuggestions.length;
+    if (!confirm(`Apply ${count} AI suggestion${count !== 1 ? 's' : ''} to your programme? This will modify exercises. You can undo by not saving.`)) return;
+
+    Editor.commitCurrentWorkout();
+
+    // Apply suggestions in reverse order for removes (to keep indices valid)
+    const sorted = [...Editor.aiSuggestions].sort((a, b) => {
+      // Removes last (highest index first), adds last
+      if (a.action === 'remove' && b.action !== 'remove') return 1;
+      if (b.action === 'remove' && a.action !== 'remove') return -1;
+      if (a.action === 'remove' && b.action === 'remove') return (b.exerciseIndex || 0) - (a.exerciseIndex || 0);
+      return 0;
+    });
+
+    let applied = 0;
+    sorted.forEach(s => {
+      const workout = Editor.programme[s.workoutIndex];
+      if (!workout) return;
+
+      if (s.action === 'modify' && s.changes) {
+        const ex = workout.exercises[s.exerciseIndex];
+        if (!ex) return;
+        if (s.changes.sets) ex.sets = s.changes.sets;
+        if (s.changes.notes !== undefined) ex.notes = s.changes.notes;
+        if (s.changes.name) ex.name = s.changes.name;
+        if (s.changes.defaultRest) ex.defaultRest = s.changes.defaultRest;
+        applied++;
+      } else if (s.action === 'add' && s.exercise) {
+        if (s.exerciseIndex >= 0 && s.exerciseIndex < workout.exercises.length) {
+          workout.exercises.splice(s.exerciseIndex, 0, s.exercise);
+        } else {
+          workout.exercises.push(s.exercise);
+        }
+        applied++;
+      } else if (s.action === 'remove') {
+        if (s.exerciseIndex >= 0 && s.exerciseIndex < workout.exercises.length) {
+          workout.exercises.splice(s.exerciseIndex, 1);
+          applied++;
+        }
+      }
+    });
+
+    Editor.markDirty();
+    Editor.renderExercises();
+    Editor.renderSidebar();
+
+    // Update AI response area
+    const applyWrap = document.getElementById('aiApplyWrap');
+    applyWrap.innerHTML = `<p style="color:var(--success);font-size:13px;text-align:center;">Applied ${applied} suggestion${applied !== 1 ? 's' : ''}. Review changes and Save when ready.</p>`;
   },
 };
 

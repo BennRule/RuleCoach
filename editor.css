@@ -411,6 +411,298 @@ select { cursor: pointer; }
   vertical-align: middle;
 }
 
+/* ---- Right Panel ---- */
+.right-panel {
+  width: 380px;
+  min-width: 380px;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: margin-right 0.25s ease, opacity 0.2s ease;
+}
+.right-panel.collapsed {
+  margin-right: -380px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.right-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.right-panel-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.right-panel-tab {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+.right-panel-tab:hover { background: var(--bg-hover); color: var(--text); }
+.right-panel-tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+.right-panel-close {
+  width: 26px; height: 26px;
+  font-size: 16px;
+}
+
+.right-panel-toggle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 56px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  transition: opacity 0.2s;
+}
+.right-panel-toggle:hover { background: var(--bg-hover); }
+.right-panel-toggle.hidden { opacity: 0; pointer-events: none; }
+
+.right-tab-content {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* ---- History Tab ---- */
+.history-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+}
+
+.history-content h3 {
+  font-size: 15px;
+  margin-bottom: 12px;
+  color: var(--accent);
+}
+
+.history-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.history-stat {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+.history-stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.history-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+.history-stat-value.best { color: var(--success); }
+
+.history-chart-wrap {
+  margin-bottom: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.history-chart-wrap canvas {
+  width: 100%;
+  height: 160px;
+}
+
+.history-session-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.history-session-card.best-volume { border-color: var(--success); }
+.history-session-card .session-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.history-session-card .session-badge {
+  display: inline-block;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 700;
+}
+.session-badge.done { background: rgba(34,197,94,0.15); color: var(--success); }
+.session-badge.skipped { background: rgba(239,68,68,0.15); color: var(--danger); }
+.session-badge.best-vol { background: rgba(34,197,94,0.2); color: var(--success); }
+.session-badge.max-wt { background: rgba(124,58,237,0.2); color: var(--accent); }
+
+.history-session-card .session-sets {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+.history-session-card .session-rpe {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.history-session-card .session-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.history-session-card:hover .session-delete { opacity: 0.6; }
+.history-session-card .session-delete:hover { opacity: 1; background: rgba(239,68,68,0.1); }
+
+/* ---- AI Coach Tab ---- */
+.ai-config {
+  margin-bottom: 16px;
+}
+.ai-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+.ai-label:first-child { margin-top: 0; }
+.ai-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.ai-evaluate-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px;
+  font-size: 14px;
+}
+.ai-evaluate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ai-response {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ai-response-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+.ai-response-content {
+  white-space: pre-wrap;
+}
+.ai-response-content h4 {
+  color: var(--accent);
+  margin: 14px 0 6px;
+  font-size: 13px;
+}
+.ai-response-content p {
+  margin-bottom: 8px;
+}
+.ai-response-content ul {
+  margin: 6px 0 10px 18px;
+  color: var(--text-dim);
+}
+.ai-response-content li {
+  margin-bottom: 4px;
+}
+.ai-response-content strong { color: var(--text); }
+
+.ai-loading {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-dim);
+}
+.ai-loading-spinner {
+  display: inline-block;
+  width: 24px; height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 10px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ai-apply-wrap {
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+.ai-apply-wrap .btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+}
+
+/* ---- Clickable exercise names ---- */
+.exercise-table .input-name.clickable-name {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+.exercise-table .input-name.clickable-name:hover {
+  text-decoration-color: var(--accent);
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
   .editor-layout { flex-direction: column; }
@@ -425,4 +717,6 @@ select { cursor: pointer; }
   .workout-item { padding: 6px 10px; font-size: 13px; }
   .main-panel { padding: 16px; }
   .workout-header { flex-direction: column; gap: 12px; }
+  .right-panel { display: none; }
+  .right-panel-toggle { display: none; }
 }

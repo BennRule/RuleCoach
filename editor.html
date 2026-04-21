@@ -78,6 +78,57 @@
         <button class="btn btn-add-exercise" onclick="Editor.addExercise()">+ Add Exercise</button>
       </div>
     </main>
+
+    <!-- Right Panel: History & AI Coach -->
+    <aside class="right-panel" id="rightPanel">
+      <div class="right-panel-header">
+        <div class="right-panel-tabs">
+          <button class="right-panel-tab active" data-tab="history" onclick="Editor.switchRightTab('history')">History</button>
+          <button class="right-panel-tab" data-tab="ai" onclick="Editor.switchRightTab('ai')">AI Coach</button>
+        </div>
+        <button class="btn-icon right-panel-close" onclick="Editor.toggleRightPanel()" title="Close panel">&times;</button>
+      </div>
+
+      <!-- History Tab -->
+      <div class="right-tab-content" id="tabHistory">
+        <div class="history-empty" id="historyEmpty">
+          <p>Click an exercise name in the table to view its workout history.</p>
+        </div>
+        <div class="history-content" id="historyContent" style="display:none;">
+          <h3 id="historyExName"></h3>
+          <div class="history-stats" id="historyStats"></div>
+          <div class="history-chart-wrap">
+            <canvas id="historyChart" width="340" height="160"></canvas>
+          </div>
+          <div class="history-sessions" id="historySessions"></div>
+        </div>
+      </div>
+
+      <!-- AI Coach Tab -->
+      <div class="right-tab-content" id="tabAI" style="display:none;">
+        <div class="ai-config">
+          <label class="ai-label">Anthropic API Key</label>
+          <input type="password" id="aiApiKey" placeholder="sk-ant-..." class="ai-input">
+          <label class="ai-label">Goal</label>
+          <select id="aiGoal" class="ai-input">
+            <option value="hypertrophy">Hypertrophy</option>
+            <option value="strength">Strength</option>
+            <option value="general">General Fitness</option>
+            <option value="fatloss">Fat Loss</option>
+          </select>
+          <button class="btn btn-primary ai-evaluate-btn" id="aiEvalBtn" onclick="Editor.aiEvaluate()">Evaluate Programme</button>
+        </div>
+        <div class="ai-response" id="aiResponse">
+          <div class="ai-response-empty">Configure your API key and click Evaluate to get AI coaching feedback.</div>
+        </div>
+        <div class="ai-apply-wrap" id="aiApplyWrap" style="display:none;">
+          <button class="btn btn-primary" onclick="Editor.aiApplySuggestions()">Apply Suggestions</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Toggle button for right panel (shown when panel is closed) -->
+    <button class="right-panel-toggle" id="rightPanelToggle" onclick="Editor.toggleRightPanel()" title="Open History / AI Coach">&#9664;</button>
   </div>
 
   <!-- Set detail modal -->
