@@ -1077,6 +1077,76 @@ App.today._confirmSwap = function(ei, newName) {
   App.today.renderActiveSession(document.getElementById('todayContent'));
 };
 
+App.today.showExerciseInfo = function(exerciseName) {
+  const query = encodeURIComponent(exerciseName + ' exercise form how to');
+  const ytSearch = `https://www.youtube.com/results?search_query=${query}`;
+  let html = `<h2>${exerciseName}</h2>`;
+  html += `<div style="margin:12px 0;">
+    <a href="${ytSearch}" target="_blank" rel="noopener" class="btn btn-primary btn-block" style="text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <span style="font-size:20px;">&#9654;</span> Watch Demo Video
+    </a>
+  </div>`;
+  // Show description from programme notes
+  const settings = Store.get('rulecoach_settings') || {};
+  const user = settings.user || 'benn';
+  const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
+  let notes = '';
+  programme.forEach(w => {
+    w.exercises.forEach(ex => {
+      if (ex.name === exerciseName && ex.notes) notes = ex.notes;
+    });
+  });
+  if (notes) {
+    html += `<div style="margin-top:12px;padding:12px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:4px;">Notes</div>
+      <div style="font-size:14px;color:var(--text);">${notes}</div>
+    </div>`;
+  }
+  html += `<button class="btn btn-outline btn-block" style="margin-top:12px;" onclick="App.modal.forceClose()">Close</button>`;
+  App.modal.open(html);
+};
+
+App.today.showExerciseHistory = function(exerciseName) {
+  const sessions = Store.get(sessionsKey()) || [];
+  const settings = Store.get('rulecoach_settings') || {};
+  const unit = settings.units || 'kg';
+  const matches = [];
+  for (let i = sessions.length - 1; i >= 0 && matches.length < 5; i--) {
+    const s = sessions[i];
+    const ex = s.exercises.find(e => e.name === exerciseName);
+    if (ex) matches.push({ date: s.date, exercise: ex });
+  }
+  let html = `<h2>${exerciseName}</h2><p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Last ${matches.length} session${matches.length !== 1 ? 's' : ''}</p>`;
+  if (matches.length === 0) {
+    html += '<p style="color:var(--text-dim);">No history yet for this exercise.</p>';
+  } else {
+    matches.forEach(m => {
+      const doneSets = m.exercise.sets.filter(s => s.status === 'done');
+      const maxWeight = doneSets.length > 0 ? Math.max(...doneSets.map(s => s.actualWeight)) : 0;
+      const totalVol = doneSets.reduce((a, s) => a + s.actualWeight * s.actualReps, 0);
+      html += `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:600;">${formatDate(m.date)}</span>
+          ${m.exercise.rpe ? `<span style="font-size:12px;color:var(--text-dim);">RPE ${m.exercise.rpe}</span>` : ''}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text-dim);">
+          ${m.exercise.sets.map((s, si) => {
+            if (s.status === 'done') return `<span style="background:var(--card);padding:3px 8px;border-radius:6px;">${s.actualWeight}${unit} x ${s.actualReps}</span>`;
+            if (s.status === 'skipped') return `<span style="background:var(--card);padding:3px 8px;border-radius:6px;opacity:0.5;">Skip</span>`;
+            return '';
+          }).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Max: ${maxWeight}${unit} | Vol: ${Math.round(totalVol)}${unit}</div>
+      </div>`;
+    });
+  }
+  html += `<div style="margin-top:12px;display:flex;gap:8px;">
+    <button class="btn btn-outline btn-block" style="flex:1;" onclick="App.chart.show('${exerciseName.replace(/'/g, "\\'")}');App.modal.forceClose();">Chart</button>
+    <button class="btn btn-primary btn-block" style="flex:1;" onclick="App.modal.forceClose()">Close</button>
+  </div>`;
+  App.modal.open(html);
+};
+
 App.today.startElapsedTimer = function() {
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.workoutElapsedInterval = setInterval(() => {
@@ -1171,6 +1241,11 @@ App.today.renderActiveSession = function(container) {
     if (ex.notes) {
       html += `<div class="exercise-notes">${ex.notes}</div>`;
     }
+
+    html += `<div class="exercise-links">
+      <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseInfo('${ex.name.replace(/'/g, "\\'")}')">Demo video</button>
+      <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseHistory('${ex.name.replace(/'/g, "\\'")}')">View history</button>
+    </div>`;
 
     ex.sets.forEach((s, si) => {
       // Detect cardio/time-based sets — no weight input needed
@@ -1364,7 +1439,7 @@ App.today.resetRestBar = function() {
   const label = document.getElementById('globalRestLabel');
   if (!bar) return;
 
-  bar.classList.remove('running', 'ringing');
+  bar.classList.remove('running', 'ringing', 'warning');
   if (progress) { progress.style.transition = 'none'; progress.style.width = '0%'; }
 
   const defaultRest = App._lastRestTime || 120;
@@ -1390,7 +1465,7 @@ App.today.startGlobalRest = function(ei) {
   if (!bar || !display) return;
 
   bar.classList.add('visible', 'running');
-  bar.classList.remove('ringing');
+  bar.classList.remove('ringing', 'warning');
   display.textContent = App.today.formatRestTime(remaining);
   if (label) label.textContent = ex ? ex.name : 'Rest';
   if (progress) { progress.style.width = '100%'; progress.style.transition = 'none'; }
@@ -1433,6 +1508,12 @@ App.today.startGlobalRest = function(ei) {
       return;
     }
     display.textContent = App.today.formatRestTime(remaining);
+    // Yellow warning for last 20 seconds
+    if (remaining <= 20) {
+      bar.classList.add('warning');
+    } else {
+      bar.classList.remove('warning');
+    }
   }, 1000);
 
   App.restTimer = { interval, remaining, exerciseIdx: ei };

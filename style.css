@@ -197,6 +197,15 @@ label {
   font-size: 13px; color: var(--text-dim);
   margin-bottom: 12px; font-style: italic;
 }
+.exercise-links {
+  display: flex; gap: 12px; margin-bottom: 10px;
+}
+.exercise-link-btn {
+  background: none; border: none; color: var(--accent-light); font-size: 12px;
+  cursor: pointer; padding: 0; display: flex; align-items: center; gap: 4px;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.exercise-link-btn:active { opacity: 0.6; }
 
 /* Set row */
 .set-row {
@@ -295,6 +304,13 @@ label {
 .global-rest-bar.running {
   background: #7f1d1d;
   border-bottom-color: #ef4444;
+}
+.global-rest-bar.warning {
+  background: #78350f;
+  border-bottom-color: var(--yellow);
+}
+.global-rest-bar.warning .global-rest-progress {
+  background: rgba(234,179,8,0.3);
 }
 .global-rest-bar.ringing {
   background: #166534;
