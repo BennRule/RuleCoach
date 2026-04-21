@@ -547,7 +547,7 @@ const Editor = {
     }
     // localStorage fallback
     const local = localStorage.getItem(key);
-    Editor.sessionCache = local ? JSON.parse(local) : {};
+    Editor.sessionCache = local ? JSON.parse(local) : [];
   },
 
   async showExerciseHistory(exerciseName) {
@@ -568,30 +568,22 @@ const Editor = {
       await Editor.loadSessions();
     }
 
-    const sessions = Editor.sessionCache || {};
+    const sessions = Array.isArray(Editor.sessionCache) ? Editor.sessionCache : [];
     // Find sessions containing this exercise
     const matches = [];
 
-    // Sessions is an object keyed by date string or session ID
-    // Each session has a .exercises array (matching the main app structure)
-    Object.keys(sessions).forEach(sessionKey => {
-      const session = sessions[sessionKey];
-      if (!session) return;
+    sessions.forEach((session, idx) => {
+      if (!session || !session.exercises) return;
 
-      // The main app stores sessions as objects with exercises array
-      // Each exercise has: name, sets (array with reps, weight, done, rpe, skipped)
-      const exercises = session.exercises || session;
-      if (!Array.isArray(exercises)) return;
-
-      exercises.forEach(ex => {
+      session.exercises.forEach(ex => {
         if (!ex || !ex.name) return;
-        // Fuzzy match: case-insensitive, trim whitespace
         if (ex.name.trim().toLowerCase() === exerciseName.trim().toLowerCase()) {
           matches.push({
-            date: session.date || session.completedAt || sessionKey,
-            sessionKey: sessionKey,
+            date: session.date || '',
+            sessionIndex: idx,
+            sessionId: session.id || idx,
             exercise: ex,
-            status: ex.skipped ? 'skipped' : 'done'
+            workoutName: session.workoutName || ''
           });
         }
       });
@@ -614,8 +606,8 @@ const Editor = {
       const sets = m.exercise.sets || [];
       let sessionVolume = 0;
       sets.forEach(s => {
-        const w = parseFloat(s.weight) || 0;
-        const r = parseInt(s.reps) || 0;
+        const w = parseFloat(s.actualWeight || s.weight) || 0;
+        const r = parseInt(s.actualReps || s.reps) || 0;
         if (w > maxWeight) maxWeight = w;
         sessionVolume += w * r;
       });
@@ -660,8 +652,8 @@ const Editor = {
       const dateStr = Editor.formatSessionDate(m.date);
       const sets = m.exercise.sets || [];
       const setsHtml = sets.map((s, si) => {
-        const w = s.weight || s.targetWeight || '?';
-        const r = s.reps || s.targetReps || '?';
+        const w = s.actualWeight || s.weight || s.targetWeight || '?';
+        const r = s.actualReps || s.reps || s.targetReps || '?';
         return `Set ${si + 1}: ${w}kg x ${r}`;
       }).join('<br>');
 
@@ -671,14 +663,14 @@ const Editor = {
       badges += `<span class="session-badge ${m.status}">${m.status}</span>`;
       if (i === bestVolumeIdx) badges += '<span class="session-badge best-vol">Best Volume</span>';
       // Check if this session has max weight
-      const sessionMax = Math.max(0, ...sets.map(s => parseFloat(s.weight) || 0));
+      const sessionMax = Math.max(0, ...sets.map(s => parseFloat(s.actualWeight || s.weight) || 0));
       if (sessionMax === maxWeight && maxWeight > 0) badges += '<span class="session-badge max-wt">Max Weight</span>';
 
       card.innerHTML = `
         <div class="session-date">${dateStr} ${badges}</div>
         <div class="session-sets">${setsHtml}</div>
         ${rpeVal ? `<div class="session-rpe">RPE: ${rpeVal}</div>` : ''}
-        <button class="session-delete" onclick="Editor.deleteSessionExercise('${escHtml(m.sessionKey)}', '${escHtml(m.exercise.name)}')" title="Delete this entry">&times;</button>
+        <button class="session-delete" onclick="Editor.deleteSessionExercise(${m.sessionIndex}, '${escHtml(m.exercise.name)}')" title="Delete this entry">&times;</button>
       `;
 
       container.appendChild(card);
@@ -721,7 +713,7 @@ const Editor = {
     // Data: max weight per session
     const points = sessions.map(m => {
       const sets = m.exercise.sets || [];
-      return Math.max(0, ...sets.map(s => parseFloat(s.weight) || 0));
+      return Math.max(0, ...sets.map(s => parseFloat(s.actualWeight || s.weight) || 0));
     });
 
     const minVal = Math.min(...points) * 0.9;
@@ -777,26 +769,25 @@ const Editor = {
     });
   },
 
-  async deleteSessionExercise(sessionKey, exerciseName) {
-    if (!confirm(`Delete "${exerciseName}" data from session ${Editor.formatSessionDate(sessionKey)}?`)) return;
+  async deleteSessionExercise(sessionIndex, exerciseName) {
+    if (!confirm(`Delete "${exerciseName}" data from this session?`)) return;
 
     if (!Editor.sessionCache) await Editor.loadSessions();
     const sessions = Editor.sessionCache;
-    if (!sessions || !sessions[sessionKey]) return;
+    if (!Array.isArray(sessions) || !sessions[sessionIndex]) return;
 
-    const session = sessions[sessionKey];
-    const exercises = session.exercises || session;
-    if (!Array.isArray(exercises)) return;
+    const session = sessions[sessionIndex];
+    if (!session.exercises) return;
 
     // Find and remove the exercise
-    const idx = exercises.findIndex(ex => ex && ex.name && ex.name.trim().toLowerCase() === exerciseName.trim().toLowerCase());
+    const idx = session.exercises.findIndex(ex => ex && ex.name && ex.name.trim().toLowerCase() === exerciseName.trim().toLowerCase());
     if (idx === -1) return;
 
-    if (exercises.length <= 1) {
+    if (session.exercises.length <= 1) {
       // Remove the entire session
-      delete sessions[sessionKey];
+      sessions.splice(sessionIndex, 1);
     } else {
-      exercises.splice(idx, 1);
+      session.exercises.splice(idx, 1);
     }
 
     // Save back
