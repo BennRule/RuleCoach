@@ -848,7 +848,7 @@ const Editor = {
     const programmeJson = JSON.stringify(Editor.programme, null, 2);
     const sessionsJson = Editor.sessionCache ? JSON.stringify(Editor.sessionCache, null, 2).slice(0, 12000) : '{}';
 
-    const goalLabels = { hypertrophy: 'Hypertrophy (muscle growth)', strength: 'Strength (1RM improvement)', general: 'General Fitness', fatloss: 'Fat Loss' };
+    const goalLabels = { hypertrophy: 'Hypertrophy (muscle growth)', strength: 'Strength (1RM improvement)', strength_hypertrophy: 'Strength + Hypertrophy (heavy compounds + hypertrophy volume)', general: 'General Fitness', fatloss: 'Fat Loss' };
     const goalLabel = goalLabels[goal] || goal;
 
     const systemPrompt = `You are an expert strength & conditioning coach reviewing a workout programme. The user's goal is: ${goalLabel}.
