@@ -674,10 +674,9 @@ App.init = function() {
     App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
   }
 
-  if (!settings.user) {
-    settings.user = 'benn';
-    Store.set('rulecoach_settings', settings);
-  }
+  // RuleCoach: hardcoded to benn (Bonny has separate BonnyCoach app)
+  settings.user = 'benn';
+  Store.set('rulecoach_settings', settings);
   App.settings.updateUserButtons();
 
   App.today.render();
