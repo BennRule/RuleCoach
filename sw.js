@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v26';
+const CACHE_NAME = 'rulecoach-v27';
 
 // Force activate when told to skip waiting
 self.addEventListener('message', e => {

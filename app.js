@@ -100,8 +100,35 @@ const Sync = {
   async pushKey(key) {
     if (!db) return;
     try {
-      const val = Store.get(key);
+      let val = Store.get(key);
       const now = new Date().toISOString();
+
+      // SAFETY: For session/bodyweight keys (append-only data), merge with remote by ID
+      // to prevent accidental data loss when an old client pushes a stale local copy.
+      const isSessionKey = key.startsWith('rulecoach_sessions_') || key === 'rulecoach_bodyweight';
+      if (isSessionKey && Array.isArray(val)) {
+        try {
+          const remoteDoc = await db.collection(Sync.COLLECTION).doc(key).get();
+          if (remoteDoc.exists && Array.isArray(remoteDoc.data().data)) {
+            const remoteArr = remoteDoc.data().data;
+            const localIds = new Set(val.map((s, i) => s && s.id ? s.id : 'idx-' + i));
+            const onlyInRemote = remoteArr.filter((s, i) => {
+              const id = s && s.id ? s.id : 'remote-idx-' + i;
+              return !localIds.has(id);
+            });
+            if (onlyInRemote.length > 0) {
+              // Merge: union of local + remote-only items
+              val = [...val, ...onlyInRemote];
+              val.sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0));
+              // Update local copy too
+              localStorage.setItem(key, JSON.stringify(val));
+            }
+          }
+        } catch (mergeErr) {
+          console.warn('Merge check failed for', key, mergeErr.message);
+        }
+      }
+
       await db.collection(Sync.COLLECTION).doc(key).set({
         data: val,
         updatedAt: now
