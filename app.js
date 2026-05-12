@@ -1535,13 +1535,13 @@ App.today.resetRestBar = function() {
 App.today.startGlobalRest = function(ei) {
   // Stop any existing timer
   if (App.restTimer) {
-    clearInterval(App.restTimer.interval);
+    if (typeof App.restTimer.cleanup === 'function') App.restTimer.cleanup();
+    else clearInterval(App.restTimer.interval);
     App.restTimer = null;
   }
 
   const ex = ei !== undefined && App.activeSession ? App.activeSession.exercises[ei] : null;
   const total = ex ? (ex.defaultRest || 120) : 120;
-  let remaining = total;
 
   const bar = document.getElementById('globalRestBar');
   const display = document.getElementById('globalRestDisplay');
@@ -1549,10 +1549,14 @@ App.today.startGlobalRest = function(ei) {
   const label = document.getElementById('globalRestLabel');
   if (!bar || !display) return;
 
+  // Timestamp-based timer: survives tab being in background
+  const endTime = Date.now() + total * 1000;
+  const exerciseName = ex ? ex.name : 'Rest';
+
   bar.classList.add('visible', 'running');
   bar.classList.remove('ringing', 'warning');
-  display.textContent = App.today.formatRestTime(remaining);
-  if (label) label.textContent = ex ? ex.name : 'Rest';
+  display.textContent = App.today.formatRestTime(total);
+  if (label) label.textContent = exerciseName;
   if (progress) { progress.style.width = '100%'; progress.style.transition = 'none'; }
 
   // Animate progress bar
@@ -1560,53 +1564,94 @@ App.today.startGlobalRest = function(ei) {
     if (progress) { progress.style.transition = `width ${total}s linear`; progress.style.width = '0%'; }
   });
 
-  const interval = setInterval(() => {
-    remaining--;
+  // Ask for notification permission on first timer (if not already granted/denied)
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+
+  // Fire-once completion handler — runs whenever the end time is reached or detected after a background pause
+  let completed = false;
+  function complete() {
+    if (completed) return;
+    completed = true;
+    clearInterval(interval);
+    display.textContent = '0:00';
+    bar.classList.remove('running');
+    bar.classList.add('ringing');
+    if (progress) { progress.style.transition = 'none'; progress.style.width = '0%'; }
+    App.restTimer = null;
+
+    // Vibrate
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+
+    // Audio ping
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = 0.3;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.5);
+    } catch(e) {}
+
+    // Browser notification (fires even when tab is in background)
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification('Rest complete', {
+          body: exerciseName + ' — time for the next set',
+          tag: 'rulecoach-rest',
+          silent: false
+        });
+        setTimeout(() => { try { n.close(); } catch(_) {} }, 8000);
+      }
+    } catch(e) {}
+
+    // Reset to idle after 5 seconds
+    setTimeout(() => {
+      if (!App.restTimer) App.today.resetRestBar();
+    }, 5000);
+  }
+
+  function tick() {
+    const remainingMs = endTime - Date.now();
+    const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
     if (remaining <= 0) {
-      clearInterval(interval);
-      display.textContent = '0:00';
-      bar.classList.remove('running');
-      bar.classList.add('ringing');
-      App.restTimer = null;
-
-      // Vibrate
-      if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
-
-      // Audio ping
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.value = 0.3;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.5);
-      } catch(e) {}
-
-      // Reset to idle after 5 seconds
-      setTimeout(() => {
-        if (!App.restTimer) App.today.resetRestBar();
-      }, 5000);
-
+      complete();
       return;
     }
     display.textContent = App.today.formatRestTime(remaining);
     // Yellow warning for last 20 seconds
-    if (remaining <= 20) {
-      bar.classList.add('warning');
-    } else {
-      bar.classList.remove('warning');
-    }
-  }, 1000);
+    if (remaining <= 20) bar.classList.add('warning');
+    else bar.classList.remove('warning');
+  }
 
-  App.restTimer = { interval, remaining, exerciseIdx: ei };
+  const interval = setInterval(tick, 1000);
+  // Also re-sync immediately when the tab becomes visible (browsers throttle setInterval in background)
+  function onVisibility() { if (!completed) tick(); }
+  document.addEventListener('visibilitychange', onVisibility);
+  // Schedule a backup completion check at the exact end time (in case interval is throttled)
+  const completionTimeout = setTimeout(() => { if (!completed) complete(); }, total * 1000 + 100);
+
+  App.restTimer = {
+    interval,
+    completionTimeout,
+    endTime,
+    exerciseIdx: ei,
+    cleanup() {
+      clearInterval(interval);
+      clearTimeout(completionTimeout);
+      document.removeEventListener('visibilitychange', onVisibility);
+    }
+  };
 };
 
 App.today.stopGlobalRest = function() {
   if (App.restTimer) {
-    clearInterval(App.restTimer.interval);
+    if (typeof App.restTimer.cleanup === 'function') App.restTimer.cleanup();
+    else clearInterval(App.restTimer.interval);
     App.restTimer = null;
   }
   App.today.resetRestBar();
