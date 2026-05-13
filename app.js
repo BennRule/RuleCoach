@@ -1635,6 +1635,24 @@ App.today.startGlobalRest = function(ei) {
   // Schedule a backup completion check at the exact end time (in case interval is throttled)
   const completionTimeout = setTimeout(() => { if (!completed) complete(); }, total * 1000 + 100);
 
+  // Wake Lock — keep the screen on during the rest timer so the tab doesn't get backgrounded
+  // (which would pause JS execution and the timer on mobile browsers)
+  let wakeLock = null;
+  if ('wakeLock' in navigator) {
+    navigator.wakeLock.request('screen').then(lock => {
+      wakeLock = lock;
+      // Re-acquire if released (e.g. user switched tabs then came back)
+      lock.addEventListener('release', () => { wakeLock = null; });
+    }).catch(() => {});
+    // Re-acquire on visibility change if we lost it
+    function onVisChange() {
+      if (document.visibilityState === 'visible' && !wakeLock && !completed) {
+        navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
+      }
+    }
+    document.addEventListener('visibilitychange', onVisChange);
+  }
+
   App.restTimer = {
     interval,
     completionTimeout,
@@ -1644,6 +1662,7 @@ App.today.startGlobalRest = function(ei) {
       clearInterval(interval);
       clearTimeout(completionTimeout);
       document.removeEventListener('visibilitychange', onVisibility);
+      if (wakeLock) { try { wakeLock.release(); } catch(_) {} wakeLock = null; }
     }
   };
 };
