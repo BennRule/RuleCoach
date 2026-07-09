@@ -880,12 +880,16 @@ App.today.startWorkout = function(name) {
         sets: ex.sets.map((s, si) => {
           const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
           // Auto-progression writes new target weights into the programme template.
-          // If the template weight differs from what was last lifted, the programme
-          // has progressed — use the template (new weight, programmed reps).
-          // Otherwise carry forward last session's actuals (rep ratcheting).
-          const progressed = s.targetWeight > 0 && (!prevSet || prevSet.actualWeight !== s.targetWeight);
-          const startReps = progressed || !prevSet ? s.targetReps : prevSet.actualReps;
-          const startWeight = progressed || !prevSet ? s.targetWeight : prevSet.actualWeight;
+          // Trust the template only when it differs from last actuals by at most one
+          // progression increment (a deliberate increase/decrease). A bigger gap means
+          // the template is stale — carry last session's actuals instead so targets
+          // never slip backwards.
+          const inc = App.today.getIncrement(ex.name);
+          const templateMoved = prevSet && prevSet.actualWeight !== s.targetWeight &&
+            Math.abs(s.targetWeight - prevSet.actualWeight) <= inc + 0.01;
+          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved);
+          const startReps = useTemplate || !prevSet ? s.targetReps : prevSet.actualReps;
+          const startWeight = useTemplate || !prevSet ? s.targetWeight : prevSet.actualWeight;
           return {
             targetReps: startReps,
             targetWeight: startWeight,
