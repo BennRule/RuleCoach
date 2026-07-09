@@ -670,14 +670,14 @@ const App = {
 
 // ---- Init ----
 App.init = function() {
-  // Seed programme if not exists
-  if (!Store.get('rulecoach_programme')) {
-    Store.set('rulecoach_programme', getDefaultProgramme());
-  }
-  // Seed Bonny's programme if not exists
-  if (!Store.get('rulecoach_programme_bonny')) {
-    Store.set('rulecoach_programme_bonny', getDefaultBonnyProgramme());
-  }
+  // Seed defaults locally WITHOUT triggering a sync push. A fresh device must
+  // never push its seeded defaults over the cloud copy — Sync.pullAll() fetches
+  // the real data, and only pushes local data if no remote doc exists at all.
+  const seed = (key, val) => {
+    if (!Store.get(key)) localStorage.setItem(key, JSON.stringify(val));
+  };
+  seed('rulecoach_programme', getDefaultProgramme());
+  seed('rulecoach_programme_bonny', getDefaultBonnyProgramme());
   // Migrate sessions from old key to user-specific key
   try {
     const oldRaw = localStorage.getItem('rulecoach_sessions');
@@ -698,12 +698,8 @@ App.init = function() {
       }
     }
   } catch(e) { console.warn('Session migration error:', e); }
-  if (!Store.get(sessionsKey())) {
-    Store.set(sessionsKey(), []);
-  }
-  if (!Store.get('rulecoach_settings')) {
-    Store.set('rulecoach_settings', { apiKey: '', units: 'kg', userName: '' });
-  }
+  seed(sessionsKey(), []);
+  seed('rulecoach_settings', { apiKey: '', units: 'kg', userName: '' });
 
   // Load settings into UI
   const settings = Store.get('rulecoach_settings');
@@ -724,9 +720,12 @@ App.init = function() {
     }
   }
 
-  // RuleCoach: hardcoded to benn (Bonny has separate BonnyCoach app)
-  settings.user = 'benn';
-  Store.set('rulecoach_settings', settings);
+  // RuleCoach: hardcoded to benn (Bonny has separate BonnyCoach app).
+  // Local-only hygiene — write directly so it never pushes over cloud settings.
+  if (settings.user !== 'benn') {
+    settings.user = 'benn';
+    localStorage.setItem('rulecoach_settings', JSON.stringify(settings));
+  }
   App.settings.updateUserButtons();
 
   App.today.render();
