@@ -18,7 +18,11 @@ if ('serviceWorker' in navigator) {
 function updateOnlineStatus() {
   document.getElementById('offlineBanner').classList.toggle('show', !navigator.onLine);
 }
-window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('online', () => {
+  updateOnlineStatus();
+  // Push/pull anything that changed while offline
+  if (typeof Sync !== 'undefined' && db) Sync.pullAll().catch(() => {});
+});
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus();
 
@@ -30,6 +34,18 @@ function uuid() {
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Escape text for safe interpolation into innerHTML
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Escape a value for use inside a '...'-quoted JS string within an HTML attribute
+function escJs(str) {
+  return esc(String(str ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
 }
 
 function formatDuration(mins) {
@@ -693,12 +709,19 @@ App.init = function() {
   const settings = Store.get('rulecoach_settings');
   document.getElementById('settingUnits').value = settings.units || 'kg';
 
-  // Check for in-progress session
+  // Check for in-progress session. A session that already exists in history is a
+  // stale leftover (e.g. finished on another device) — clear it instead of resuming.
   const saved = Store.get('rulecoach_active_session');
-  if (saved) {
-    App.activeSession = saved.session;
-    App.workoutStartTime = saved.startTime;
-    App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
+  if (saved && saved.session) {
+    const priorSessions = Store.get(sessionsKey()) || [];
+    const alreadyFinished = priorSessions.some(s => s.id === saved.session.id);
+    if (alreadyFinished) {
+      Store.set('rulecoach_active_session', { session: null, startTime: null });
+    } else {
+      App.activeSession = saved.session;
+      App.workoutStartTime = saved.startTime;
+      App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
+    }
   }
 
   // RuleCoach: hardcoded to benn (Bonny has separate BonnyCoach app)
@@ -714,6 +737,25 @@ App.init = function() {
   // Cloud sync: pull from Firestore (non-blocking)
   if (db && navigator.onLine) {
     Sync.pullAll().then(() => {
+      // Adopt an in-progress session synced from another device — only if idle here,
+      // not already finished (saved to history), and recent enough to plausibly be live
+      if (!App.activeSession) {
+        const pulled = Store.get('rulecoach_active_session');
+        if (pulled && pulled.session) {
+          const sessions = Store.get(sessionsKey()) || [];
+          const alreadyFinished = sessions.some(s => s.id === pulled.session.id);
+          const ageHours = (Date.now() - new Date(pulled.session.date).getTime()) / 3600000;
+          if (!alreadyFinished && ageHours < 12) {
+            App.activeSession = pulled.session;
+            App.workoutStartTime = pulled.startTime;
+            App.activeSession._prevSession = App.today.getLastSessionData(App.activeSession.workoutName);
+            App.today.startElapsedTimer();
+          }
+        }
+      }
+      // Refresh settings UI in case settings were pulled
+      const pulledSettings = Store.get('rulecoach_settings') || {};
+      document.getElementById('settingUnits').value = pulledSettings.units || 'kg';
       App.today.render();
       App.history.render();
       App.programme.render();
@@ -731,6 +773,7 @@ App.nav = function(screen) {
 
   if (screen === 'history') App.history.render();
   if (screen === 'programme') App.programme.render();
+  if (screen === 'settings') Sync.renderStatus();
 };
 
 // ---- TODAY SCREEN ----
@@ -783,10 +826,10 @@ App.today.render = function() {
   container.innerHTML = `
     <h1 class="screen-title">${greeting}</h1>
     <div class="card">
-      <h2 style="font-size:20px;font-weight:700;">${workout.name}</h2>
-      <p style="font-size:14px;color:var(--text-dim);margin-top:2px;">${workout.subtitle} — ${workout.day}</p>
+      <h2 style="font-size:20px;font-weight:700;">${esc(workout.name)}</h2>
+      <p style="font-size:14px;color:var(--text-dim);margin-top:2px;">${esc(workout.subtitle)} — ${esc(workout.day)}</p>
       <p style="font-size:13px;color:var(--text-dim);margin-top:4px;">${workout.exercises.length} exercises</p>
-      <button class="btn btn-primary btn-block" style="margin-top:16px" onclick="App.today.startWorkout('${workout.name}')">
+      <button class="btn btn-primary btn-block" style="margin-top:16px" onclick="App.today.startWorkout('${escJs(workout.name)}')">
         Start Workout
       </button>
     </div>
@@ -800,7 +843,7 @@ App.today.startAnyWorkout = function() {
   const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
   let html = '<h2>Choose Workout</h2>';
   programme.forEach(w => {
-    html += `<button class="btn btn-outline btn-block" style="margin-top:10px" onclick="App.today.startWorkout('${w.name}');App.modal.forceClose();">${w.name} — ${w.subtitle}</button>`;
+    html += `<button class="btn btn-outline btn-block" style="margin-top:10px" onclick="App.today.startWorkout('${escJs(w.name)}');App.modal.forceClose();">${esc(w.name)} — ${esc(w.subtitle)}</button>`;
   });
   App.modal.open(html);
 };
@@ -837,13 +880,20 @@ App.today.startWorkout = function(name) {
         rpe: null,
         sets: ex.sets.map((s, si) => {
           const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
+          // Auto-progression writes new target weights into the programme template.
+          // If the template weight differs from what was last lifted, the programme
+          // has progressed — use the template (new weight, programmed reps).
+          // Otherwise carry forward last session's actuals (rep ratcheting).
+          const progressed = s.targetWeight > 0 && (!prevSet || prevSet.actualWeight !== s.targetWeight);
+          const startReps = progressed || !prevSet ? s.targetReps : prevSet.actualReps;
+          const startWeight = progressed || !prevSet ? s.targetWeight : prevSet.actualWeight;
           return {
-            targetReps: prevSet ? prevSet.actualReps : s.targetReps,
-            targetWeight: prevSet ? prevSet.actualWeight : s.targetWeight,
+            targetReps: startReps,
+            targetWeight: startWeight,
             repRange: s.repRange || '',
             note: s.note || '',
-            actualReps: prevSet ? prevSet.actualReps : s.targetReps,
-            actualWeight: prevSet ? prevSet.actualWeight : s.targetWeight,
+            actualReps: startReps,
+            actualWeight: startWeight,
             status: null
           };
         })
@@ -1016,14 +1066,14 @@ App.today.swapExercise = function(ei) {
   sameMuscle.sort();
   others.sort();
 
-  let html = `<h2>Swap: ${current}</h2>`;
+  let html = `<h2>Swap: ${esc(current)}</h2>`;
   if (cat) html += `<p style="color:var(--text-dim);font-size:13px;margin-bottom:4px;">${cat.muscle} · ${cat.pattern} · ${cat.equipment}</p>`;
   html += `<p style="color:var(--text-dim);font-size:12px;margin-bottom:16px;">Session only — won't change your programme</p>`;
 
   function makeBtn(name, badge) {
     const c = getExerciseCategory(name);
     const sub = c ? `<span style="font-size:11px;color:var(--text-dim);margin-left:8px;">${c.equipment}</span>` : '';
-    return `<button class="btn btn-outline btn-block" style="margin-top:5px;text-align:left;padding:10px 12px;" onclick="App.today._confirmSwap(${ei},'${name.replace(/'/g, "\\'")}');App.modal.forceClose();">${badge ? `<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-right:6px;">${badge}</span>` : ''}${name}${sub}</button>`;
+    return `<button class="btn btn-outline btn-block" style="margin-top:5px;text-align:left;padding:10px 12px;" onclick="App.today._confirmSwap(${ei},'${escJs(name)}');App.modal.forceClose();">${badge ? `<span style="display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:8px;margin-right:6px;">${badge}</span>` : ''}${esc(name)}${sub}</button>`;
   }
 
   if (sameMusclePattern.length > 0) {
@@ -1161,7 +1211,7 @@ App.today.showExerciseInfo = function(exerciseName) {
   const query = encodeURIComponent(exerciseName + ' exercise form how to');
   const ytSearch = `https://www.youtube.com/results?search_query=${query}`;
 
-  let html = `<h2 style="font-size:18px;">${exerciseName}</h2>`;
+  let html = `<h2 style="font-size:18px;">${esc(exerciseName)}</h2>`;
 
   if (videoId) {
     html += `<div style="margin:12px 0;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">
@@ -1199,7 +1249,7 @@ App.today.showExerciseHistory = function(exerciseName) {
     const ex = s.exercises.find(e => e.name === exerciseName);
     if (ex) matches.push({ date: s.date, exercise: ex });
   }
-  let html = `<h2>${exerciseName}</h2><p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Last ${matches.length} session${matches.length !== 1 ? 's' : ''}</p>`;
+  let html = `<h2>${esc(exerciseName)}</h2><p style="color:var(--text-dim);font-size:13px;margin-bottom:12px;">Last ${matches.length} session${matches.length !== 1 ? 's' : ''}</p>`;
   if (matches.length === 0) {
     html += '<p style="color:var(--text-dim);">No history yet for this exercise.</p>';
   } else {
@@ -1224,7 +1274,7 @@ App.today.showExerciseHistory = function(exerciseName) {
     });
   }
   html += `<div style="margin-top:12px;display:flex;gap:8px;">
-    <button class="btn btn-outline btn-block" style="flex:1;" onclick="App.chart.show('${exerciseName.replace(/'/g, "\\'")}');App.modal.forceClose();">Chart</button>
+    <button class="btn btn-outline btn-block" style="flex:1;" onclick="App.chart.show('${escJs(exerciseName)}');App.modal.forceClose();">Chart</button>
     <button class="btn btn-primary btn-block" style="flex:1;" onclick="App.modal.forceClose()">Close</button>
   </div>`;
   App.modal.open(html);
@@ -1269,7 +1319,7 @@ App.today.renderActiveSession = function(container) {
   let html = `
     <div class="workout-header">
       <div>
-        <h2>${session.workoutName}</h2>
+        <h2>${esc(session.workoutName)}</h2>
         <div style="font-size:13px;color:var(--text-dim);">${formatDate(session.date)}</div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
@@ -1305,7 +1355,7 @@ App.today.renderActiveSession = function(container) {
     html += `
     <div class="${cardClass}" id="exCard${ei}">
       <div class="exercise-header" onclick="App.today.toggleExercise(${ei})">
-        <span class="exercise-name">${ex.name}</span>
+        <span class="exercise-name">${esc(ex.name)}</span>
         <span style="display:flex;align-items:center;gap:4px;">
           ${badge}
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;margin-left:8px;" onclick="event.stopPropagation();App.today.swapExercise(${ei})">Swap</button>
@@ -1322,13 +1372,13 @@ App.today.renderActiveSession = function(container) {
     // (rest timer is now a global fixed bar — see #globalRestBar)
 
     if (ex.notes) {
-      html += `<div class="exercise-notes">${ex.notes}</div>`;
+      html += `<div class="exercise-notes">${esc(ex.notes)}</div>`;
     }
 
     if (!isCardioExercise) {
       html += `<div class="exercise-links">
-        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseInfo('${ex.name.replace(/'/g, "\\'")}')">Demo video</button>
-        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseHistory('${ex.name.replace(/'/g, "\\'")}')">View history</button>
+        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseInfo('${escJs(ex.name)}')">Demo video</button>
+        <button class="exercise-link-btn" onclick="event.stopPropagation();App.today.showExerciseHistory('${escJs(ex.name)}')">View history</button>
       </div>`;
     }
 
@@ -1351,7 +1401,7 @@ App.today.renderActiveSession = function(container) {
             ${Array.from({length:11}, (_,i) => `<option value="${i}" ${s.actualReps === i ? 'selected' : ''}>${i} round${i !== 1 ? 's' : ''}</option>`).join('')}
           </select>`;
         } else if (isDistance) {
-          cardioInput = `<input type="text" placeholder="Time (e.g. 7:30)" value="${s.note || ''}" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:13px;width:100px;" onchange="App.today.updateCardioNote(${ei},${si},this.value)">`;
+          cardioInput = `<input type="text" placeholder="Time (e.g. 7:30)" value="${esc(s.note || '')}" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:13px;width:100px;" onchange="App.today.updateCardioNote(${ei},${si},this.value)">`;
         } else {
           cardioInput = `<span style="color:var(--text-dim);font-size:13px;">${s.note || ''}</span>`;
         }
@@ -1377,8 +1427,8 @@ App.today.renderActiveSession = function(container) {
       if (s.status === 'skipped') rowClass += ' set-done';
 
       const targetLabel = s.note
-        ? s.note
-        : (s.targetWeight > 0 ? `${s.repRange} @ ${s.targetWeight}${unit}` : s.repRange);
+        ? esc(s.note)
+        : (s.targetWeight > 0 ? `${s.repRange} @ ${s.targetWeight}${exUnit}` : s.repRange);
 
       const prevEx = session._prevSession
         ? session._prevSession.exercises.find(pe => pe.name === ex.name)
@@ -1432,7 +1482,7 @@ App.today.renderActiveSession = function(container) {
   html += `
     <div class="card" style="margin-top:12px;">
       <label style="font-size:13px;color:var(--text-dim);display:block;margin-bottom:6px;">Session Notes</label>
-      <textarea id="sessionNotes" rows="3" placeholder="How did you feel? Anything to flag..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;resize:none;" onchange="App.today.saveNotes(this.value)">${App.activeSession.notes || ''}</textarea>
+      <textarea id="sessionNotes" rows="3" placeholder="How did you feel? Anything to flag..." style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text);font-size:14px;resize:none;" onchange="App.today.saveNotes(this.value)">${esc(App.activeSession.notes || '')}</textarea>
     </div>`;
 
   container.innerHTML = html;
@@ -1574,7 +1624,7 @@ App.today.startGlobalRest = function(ei) {
   function complete() {
     if (completed) return;
     completed = true;
-    clearInterval(interval);
+    cleanupTimer();
     display.textContent = '0:00';
     bar.classList.remove('running');
     bar.classList.add('ringing');
@@ -1638,19 +1688,29 @@ App.today.startGlobalRest = function(ei) {
   // Wake Lock — keep the screen on during the rest timer so the tab doesn't get backgrounded
   // (which would pause JS execution and the timer on mobile browsers)
   let wakeLock = null;
+  // Re-acquire on visibility change if we lost it
+  function onVisChange() {
+    if (document.visibilityState === 'visible' && !wakeLock && !completed) {
+      navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
+    }
+  }
   if ('wakeLock' in navigator) {
     navigator.wakeLock.request('screen').then(lock => {
       wakeLock = lock;
       // Re-acquire if released (e.g. user switched tabs then came back)
       lock.addEventListener('release', () => { wakeLock = null; });
     }).catch(() => {});
-    // Re-acquire on visibility change if we lost it
-    function onVisChange() {
-      if (document.visibilityState === 'visible' && !wakeLock && !completed) {
-        navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
-      }
-    }
     document.addEventListener('visibilitychange', onVisChange);
+  }
+
+  // Single teardown path — used both when the timer completes and when a new
+  // timer replaces this one, so listeners and the wake lock never leak
+  function cleanupTimer() {
+    clearInterval(interval);
+    clearTimeout(completionTimeout);
+    document.removeEventListener('visibilitychange', onVisibility);
+    document.removeEventListener('visibilitychange', onVisChange);
+    if (wakeLock) { try { wakeLock.release(); } catch(_) {} wakeLock = null; }
   }
 
   App.restTimer = {
@@ -1658,12 +1718,7 @@ App.today.startGlobalRest = function(ei) {
     completionTimeout,
     endTime,
     exerciseIdx: ei,
-    cleanup() {
-      clearInterval(interval);
-      clearTimeout(completionTimeout);
-      document.removeEventListener('visibilitychange', onVisibility);
-      if (wakeLock) { try { wakeLock.release(); } catch(_) {} wakeLock = null; }
-    }
+    cleanup: cleanupTimer
   };
 };
 
@@ -1784,7 +1839,7 @@ App.today.finishWorkout = function() {
       }
       progressionHtml += `<div class="prog-item ${cls}">
         <span class="prog-icon">${icon}</span>
-        <span class="prog-name">${c.exercise}</span>
+        <span class="prog-name">${esc(c.exercise)}</span>
         <span class="prog-detail">${detail}</span>
       </div>`;
       if (c.plateau) {
@@ -1801,7 +1856,7 @@ App.today.finishWorkout = function() {
   const summaryHtml = `
     <h2>Workout Complete!</h2>
     <div style="margin:16px 0;">
-      <div class="workout-complete-stat"><span class="stat-label">Workout</span><span class="stat-value">${session.workoutName}</span></div>
+      <div class="workout-complete-stat"><span class="stat-label">Workout</span><span class="stat-value">${esc(session.workoutName)}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Duration</span><span class="stat-value">${formatDuration(elapsed)}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Sets Completed</span><span class="stat-value">${doneSets}/${totalSets}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Skipped Sets</span><span class="stat-value">${skippedSets}</span></div>
@@ -1812,10 +1867,10 @@ App.today.finishWorkout = function() {
 
   App.modal.open(summaryHtml);
 
-  // Clear active
+  // Clear active — via Store.set so the cleared state syncs to other devices
   App.activeSession = null;
   App.workoutStartTime = null;
-  localStorage.removeItem('rulecoach_active_session');
+  Store.set('rulecoach_active_session', { session: null, startTime: null });
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
@@ -1916,12 +1971,14 @@ App.today.applyAutoProgression = function(completedSession) {
     // Scaled miss threshold: 30% of target reps (e.g. 2 reps on 6-rep set, 4 reps on 12-rep set)
     const missThreshold = Math.max(2, Math.round(avgTargetReps * 0.3));
 
-    // Helper: set all template sets to a specific weight
-    function setTemplateWeight(weight) {
+    // Helper: adjust each template set by a delta, anchored to what was actually
+    // lifted this session. delta 0 = hold at actual weights; positive/negative
+    // = progress/regress from actual weights. Rounds to nearest 0.25kg.
+    function adjustTemplateWeights(delta) {
       templateEx.sets.forEach((s, i) => {
-        // Use per-set actual weights if available, otherwise use the target weight
-        const setActual = doneSets[i] ? doneSets[i].actualWeight : weight;
-        s.targetWeight = setActual;
+        const done = ex.sets[i] && ex.sets[i].status === 'done' ? ex.sets[i] : null;
+        const base = done ? done.actualWeight : s.targetWeight;
+        s.targetWeight = Math.max(0, Math.round((base + delta) * 4) / 4);
       });
     }
 
@@ -1929,38 +1986,42 @@ App.today.applyAutoProgression = function(completedSession) {
     if (avgRepDiff >= missThreshold) {
       // DECREASE: reps well below target (scaled to rep range)
       const newWeight = Math.max(0, mainWeight - increment);
-      setTemplateWeight(newWeight);
+      adjustTemplateWeights(-increment);
       changes.push({ exercise: ex.name, action: 'decrease', from: mainWeight, to: newWeight, reason: `Reps well below target (avg ${Math.round(avgRepDiff)} short)` });
     } else if (hitAllReps && avgRepExcess >= 2) {
       // CRUSHING IT: exceeded target by 2+ reps avg — increase even if recently increased
       const newWeight = mainWeight + increment;
-      setTemplateWeight(newWeight);
+      adjustTemplateWeights(increment);
       let reason = `Exceeded target by avg ${Math.round(avgRepExcess)} reps`;
       if (rpe) reason += `, RPE ${rpe}`;
       changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason });
     } else if (hitAllReps && rpeOk && !recentlyIncreased) {
       // INCREASE: all sets hit, RPE manageable, not back-to-back increase
       const newWeight = mainWeight + increment;
-      setTemplateWeight(newWeight);
+      adjustTemplateWeights(increment);
       let reason = 'All sets completed';
       if (rpe) reason += `, RPE ${rpe}`;
       changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason });
     } else if (hitAllReps && rpeOk && recentlyIncreased) {
       // HOLD: consolidating recent increase — but anchor template to actual weight
-      setTemplateWeight(mainWeight);
+      adjustTemplateWeights(0);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Consolidating recent increase' });
     } else if (hitAllReps && !rpeOk) {
       // HOLD: RPE too high despite hitting reps
-      setTemplateWeight(mainWeight);
+      adjustTemplateWeights(0);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: `RPE ${rpe} — near max effort` });
     } else if (allDone && !hitAllReps && rpeOk) {
       // HOLD: completed but missed some reps, RPE ok — still progressing
-      setTemplateWeight(mainWeight);
+      adjustTemplateWeights(0);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: 'Completed but below target reps' });
     } else if (allDone && !hitAllReps && !rpeOk) {
       // HOLD + FLAG: missed reps AND high RPE — struggling
-      setTemplateWeight(mainWeight);
+      adjustTemplateWeights(0);
       changes.push({ exercise: ex.name, action: 'hold', from: mainWeight, to: mainWeight, reason: `Below target reps, RPE ${rpe} — struggling`, struggling: true });
+    } else {
+      // No decision (e.g. some sets skipped) — still anchor template to what was
+      // actually lifted so the next session starts from the right weights
+      adjustTemplateWeights(0);
     }
 
     // Add plateau warning
@@ -1992,7 +2053,7 @@ App.today.cancelWorkout = function() {
 App.today.confirmCancelWorkout = function() {
   App.activeSession = null;
   App.workoutStartTime = null;
-  localStorage.removeItem('rulecoach_active_session');
+  Store.set('rulecoach_active_session', { session: null, startTime: null });
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
@@ -2029,20 +2090,20 @@ App.history.render = function() {
       <div class="history-item" id="histItem${idx}" onclick="App.history.toggle(${idx})"
         ontouchstart="App.history._touchStart(event,${idx})" ontouchmove="App.history._touchMove(event,${idx})" ontouchend="App.history._touchEnd(event,${idx})">
         <div class="history-date">${formatDate(s.date)}</div>
-        <div class="history-name">${s.workoutName}</div>
+        <div class="history-name">${esc(s.workoutName)}</div>
         <div class="history-meta">
           <span>${formatDuration(s.durationMinutes)}</span>
           <span>${doneSets}/${totalSets} sets</span>
           <span>${Math.round(totalVol).toLocaleString()} ${unit}</span>
         </div>
-        ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${s.notes}"</div>` : ''}
+        ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${esc(s.notes)}"</div>` : ''}
         <div class="history-detail">`;
 
     s.exercises.forEach(ex => {
       html += `<div class="history-exercise-block">
         <div class="history-exercise-name">
-          ${ex.name}
-          <button class="history-chart-btn" onclick="event.stopPropagation();App.chart.show('${ex.name.replace(/'/g, "\\'")}')">Chart</button>
+          ${esc(ex.name)}
+          <button class="history-chart-btn" onclick="event.stopPropagation();App.chart.show('${escJs(ex.name)}')">Chart</button>
         </div>`;
       ex.sets.forEach((set, si) => {
         let cls = 'history-set-line';
@@ -2132,7 +2193,8 @@ App.history.renderWeeklySummary = function(sessions) {
     weeks[week].sets += s.exercises.reduce((a,e) => a + e.sets.filter(st => st.status === 'done').length, 0);
     weeks[week].volume += s.exercises.reduce((a,e) => a + e.sets.filter(st => st.status === 'done').reduce((b,st) => b + st.actualWeight * st.actualReps, 0), 0);
   });
-  const recent = Object.entries(weeks).slice(-4).reverse();
+  // Most recent 4 weeks, newest first (week keys are YYYY-Wnn so they sort lexically)
+  const recent = Object.entries(weeks).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 4);
   let html = '<div style="margin-bottom:16px;"><h3 style="font-size:14px;color:var(--text-dim);margin-bottom:8px;">Weekly Summary</h3>';
   recent.forEach(([week, data]) => {
     html += `<div class="card" style="margin-bottom:8px;padding:12px;">
@@ -2186,13 +2248,23 @@ App.chart.show = function(exerciseName) {
 
   if (dataPoints.length < 1) return;
 
+  const settings = Store.get('rulecoach_settings') || {};
+  const unit = settings.units || 'kg';
+
   document.getElementById('chartTitle').textContent = exerciseName;
   document.getElementById('chartModal').classList.add('show');
 
   const canvas = document.getElementById('chartCanvas');
   const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
+
+  // Render at device pixel ratio for crisp lines on mobile
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const W = rect.width || 400;
+  const H = rect.height || 250;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#1a1a2e';
@@ -2215,8 +2287,6 @@ App.chart.show = function(exerciseName) {
   const allWeightValues = [...weights, ...orms];
   const minW = Math.min(...allWeightValues) * 0.95;
   const maxW = Math.max(...allWeightValues) * 1.05;
-  const settings = Store.get('rulecoach_settings') || {};
-  const unit = settings.units || 'kg';
 
   // Axes
   ctx.strokeStyle = '#2d2d44';
@@ -2365,8 +2435,8 @@ App.programme.render = function() {
     html += `
     <div class="programme-day" id="progDay${wi}">
       <div class="programme-day-header" onclick="App.programme.toggle(${wi})">
-        <h3>${w.name} <span style="font-weight:400;color:var(--text-dim);font-size:13px;">— ${w.subtitle}</span></h3>
-        <span class="day-label">${w.day}</span>
+        <h3>${esc(w.name)} <span style="font-weight:400;color:var(--text-dim);font-size:13px;">— ${esc(w.subtitle)}</span></h3>
+        <span class="day-label">${esc(w.day)}</span>
       </div>
       <div class="programme-day-body">`;
 
@@ -2379,9 +2449,9 @@ App.programme.render = function() {
 
       html += `
         <div class="programme-exercise">
-          <div class="programme-ex-name">${ex.name}</div>
-          <div class="programme-ex-sets">${setsDesc}</div>
-          ${ex.notes ? `<div class="programme-ex-notes">${ex.notes}</div>` : ''}
+          <div class="programme-ex-name">${esc(ex.name)}</div>
+          <div class="programme-ex-sets">${esc(setsDesc)}</div>
+          ${ex.notes ? `<div class="programme-ex-notes">${esc(ex.notes)}</div>` : ''}
         </div>`;
     });
 
@@ -2410,18 +2480,18 @@ App.programme.edit = function(wi) {
   const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
-  let html = `<h2>Edit ${w.name}</h2>`;
+  let html = `<h2>Edit ${esc(w.name)}</h2>`;
 
   w.exercises.forEach((ex, exi) => {
     html += `
     <div style="margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
       <div class="form-group">
         <label>Exercise ${exi + 1}</label>
-        <input type="text" id="editExName${exi}" value="${ex.name}">
+        <input type="text" id="editExName${exi}" value="${esc(ex.name)}">
       </div>
       <div class="form-group">
         <label>Notes</label>
-        <input type="text" id="editExNotes${exi}" value="${ex.notes || ''}">
+        <input type="text" id="editExNotes${exi}" value="${esc(ex.notes || '')}">
       </div>`;
 
     ex.sets.forEach((s, si) => {
@@ -2477,13 +2547,11 @@ App.programme.reset = function() {
 App.settings = {};
 
 App.settings.save = function() {
-  const existing = Store.get('rulecoach_settings') || {};
-  const settings = {
-    user: existing.user || 'benn',
-    units: document.getElementById('settingUnits').value,
-  };
+  const settings = Store.get('rulecoach_settings') || {};
+  settings.user = settings.user || 'benn';
+  settings.units = document.getElementById('settingUnits').value;
   Store.set('rulecoach_settings', settings);
-  const btn = document.querySelector('#screen-settings .btn-primary');
+  const btn = document.getElementById('saveSettingsBtn');
   const orig = btn.textContent;
   btn.textContent = 'Saved!';
   btn.style.background = '#22c55e';

@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="offline-banner" id="offlineBanner">You are offline — AI coaching unavailable</div>
+  <div class="offline-banner" id="offlineBanner">You are offline — workouts still save, sync resumes when back online</div>
 
   <!-- Global Rest Timer Bar (fixed at top) -->
   <div class="global-rest-bar" id="globalRestBar" onclick="App.today.toggleGlobalRest()">
@@ -79,13 +79,13 @@
         <button class="btn btn-primary btn-block" onclick="Sync.forceSync()">Sync Now</button>
       </div>
       <div class="settings-actions">
-        <button class="btn btn-primary btn-block" onclick="App.settings.save()">Save Settings</button>
+        <button class="btn btn-primary btn-block" id="saveSettingsBtn" onclick="App.settings.save()">Save Settings</button>
         <button class="btn btn-outline btn-block" onclick="App.data.exportData()">Export All Data</button>
         <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="App.data.importData(event)">
         <button class="btn btn-outline btn-block" onclick="document.getElementById('importFileInput').click()">Import Data</button>
         <button class="btn btn-danger btn-block" onclick="App.data.clearData()">Clear All Data</button>
       </div>
-      <div class="version-info">Rule Coach v1.0</div>
+      <div class="version-info">Rule Coach v1.1</div>
     </div>
 
     <!-- Finish Workout FAB -->
