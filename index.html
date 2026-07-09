@@ -74,6 +74,11 @@
         <div id="bwHistory" style="margin-top:12px;font-size:13px;color:var(--text-dim);"></div>
       </div>
       <div class="settings-section">
+        <h3>Apple Health</h3>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Log finished workouts to Apple Health via the Shortcuts app.</div>
+        <button class="btn btn-outline btn-block" onclick="App.settings.showHealthSetup()">Setup Instructions</button>
+      </div>
+      <div class="settings-section">
         <h3>Cloud Sync</h3>
         <div id="syncStatus" style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">Not synced</div>
         <button class="btn btn-primary btn-block" onclick="Sync.forceSync()">Sync Now</button>

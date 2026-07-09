@@ -1822,6 +1822,11 @@ App.today.finishWorkout = function() {
   const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
 
+  // Calorie estimate: MET 3.5 (strength training) x 3.5 x bodyweight(kg) / 200 per minute
+  const bwEntries = Store.get('rulecoach_bodyweight') || [];
+  const bw = bwEntries.length ? bwEntries[bwEntries.length - 1].weight : 85;
+  const estKcal = Math.round(3.5 * 3.5 * bw / 200 * Math.max(1, elapsed));
+
   let progressionHtml = '';
   if (progressionChanges.length > 0) {
     progressionHtml = '<div class="progression-summary"><h3>Next Session</h3>';
@@ -1861,8 +1866,10 @@ App.today.finishWorkout = function() {
       <div class="workout-complete-stat"><span class="stat-label">Sets Completed</span><span class="stat-value">${doneSets}/${totalSets}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Skipped Sets</span><span class="stat-value">${skippedSets}</span></div>
       <div class="workout-complete-stat"><span class="stat-label">Total Volume</span><span class="stat-value">${Math.round(totalVolume).toLocaleString()} kg</span></div>
+      <div class="workout-complete-stat"><span class="stat-label">Est. Calories</span><span class="stat-value">~${estKcal} kcal</span></div>
     </div>
     ${progressionHtml}
+    <button class="btn btn-outline btn-block" onclick="App.today.logToAppleHealth(${Math.max(1, elapsed)})" style="margin-bottom:8px;">Log to Apple Health</button>
     <button class="btn btn-primary btn-block" onclick="App.modal.forceClose()">Done</button>`;
 
   App.modal.open(summaryHtml);
@@ -1876,6 +1883,15 @@ App.today.finishWorkout = function() {
   document.getElementById('finishFab').classList.remove('show');
 
   App.today.render();
+};
+
+// Hand the finished workout to the iOS Shortcuts app, which can write to Apple
+// Health (a web app can't reach HealthKit directly). Needs a one-time shortcut
+// named "Log Rule Coach Workout" — see Settings > Apple Health for setup.
+App.today.logToAppleHealth = function(mins) {
+  const url = 'shortcuts://run-shortcut?name=' + encodeURIComponent('Log Rule Coach Workout')
+    + '&input=text&text=' + encodeURIComponent(String(mins));
+  window.location.href = url;
 };
 
 // Smart increment: compounds get 2.5kg, isolation/machines get 1.25kg
@@ -2594,6 +2610,32 @@ App.settings.updateBonnyWeekButtons = function() {
   if (!btnA || !btnB) return;
   btnA.className = week === 'A' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
   btnB.className = week === 'B' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+};
+
+App.settings.showHealthSetup = function() {
+  App.modal.open(`
+    <h2>Apple Health Setup</h2>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.6;margin-bottom:12px;">
+      One-time setup. After this, the "Log to Apple Health" button on the workout
+      summary logs the session to Health (rings, calories, workout list).
+    </p>
+    <ol style="font-size:14px;line-height:1.8;padding-left:20px;color:var(--text);">
+      <li>Open the <b>Shortcuts</b> app on your iPhone</li>
+      <li>Tap <b>+</b> to create a new shortcut</li>
+      <li>Name it exactly: <b>Log Rule Coach Workout</b></li>
+      <li>Add the action <b>Log Workout</b> (search "workout")</li>
+      <li>Set Type to <b>Traditional Strength Training</b></li>
+      <li>Tap the <b>Duration</b> field, choose <b>Shortcut Input</b> (this receives the minutes)</li>
+      <li>Optionally fill <b>Calories</b> using the estimate shown on the workout summary</li>
+      <li>Run it once and allow access to Health when asked</li>
+    </ol>
+    <p style="color:var(--text-dim);font-size:13px;line-height:1.6;margin-top:12px;">
+      For real heart rate and calorie data, also start a Traditional Strength Training
+      workout on your Apple Watch when you train — the watch writes that to Health
+      directly and it merges with the logged workout.
+    </p>
+    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="App.modal.forceClose()">Close</button>
+  `);
 };
 
 // ---- DATA IMPORT/EXPORT ----
