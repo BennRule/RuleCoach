@@ -863,6 +863,10 @@ App.today.startWorkout = function(name) {
   if (!template) return;
 
   const prevSession = App.today.getLastSessionData(name);
+  const allSessions = Store.get(sessionsKey()) || [];
+  // After 3+ weeks away from this workout, last actuals are no longer a safe
+  // starting point — start from the programme's targets instead.
+  const layoff = !!prevSession && (Date.now() - new Date(prevSession.date).getTime()) > 21 * 86400000;
 
   App.activeSession = {
     id: uuid(),
@@ -884,10 +888,11 @@ App.today.startWorkout = function(name) {
           // progression increment (a deliberate increase/decrease). A bigger gap means
           // the template is stale — carry last session's actuals instead so targets
           // never slip backwards.
-          const inc = App.today.getIncrement(ex.name);
+          const inc = App.today.getIncrement(ex.name, allSessions);
+          // Allow up to two steps so a ramp-back increase is honoured
           const templateMoved = prevSet && prevSet.actualWeight !== s.targetWeight &&
-            Math.abs(s.targetWeight - prevSet.actualWeight) <= inc + 0.01;
-          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved);
+            Math.abs(s.targetWeight - prevSet.actualWeight) <= inc * 2 + 0.01;
+          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved || layoff);
           const startReps = useTemplate || !prevSet ? s.targetReps : prevSet.actualReps;
           const startWeight = useTemplate || !prevSet ? s.targetWeight : prevSet.actualWeight;
           return {
@@ -1538,8 +1543,10 @@ App.today.markSet = function(ei, si, status) {
   // Toggle: if tapping the same status, undo it
   if (s.status === status) {
     s.status = null;
+    delete s.doneAt;
   } else {
     s.status = status;
+    s.doneAt = Date.now();
   }
   App.today.saveActive();
 
@@ -1761,8 +1768,13 @@ App.today.checkFinish = function() {
 App.today.finishWorkout = function() {
   if (!App.activeSession) return;
 
-  // Calculate duration
-  const elapsed = Math.round((Date.now() - App.workoutStartTime) / 60000);
+  // Duration runs from start to the last set you marked, not to when you tapped
+  // Finish — so a session left open overnight doesn't log as 1,400 minutes.
+  // Capped at 4h for sessions with no set timestamps.
+  let lastDone = 0;
+  App.activeSession.exercises.forEach(ex => ex.sets.forEach(s => { if (s.doneAt && s.doneAt > lastDone) lastDone = s.doneAt; }));
+  const endTime = lastDone && lastDone > App.workoutStartTime ? lastDone + 60000 : Date.now();
+  const elapsed = Math.min(240, Math.max(1, Math.round((endTime - App.workoutStartTime) / 60000)));
   App.activeSession.durationMinutes = elapsed;
 
   // Clean up session object for storage
@@ -1897,9 +1909,29 @@ App.today.logToAppleHealth = function(mins) {
   window.location.href = url;
 };
 
-// Smart increment: compounds get 2.5kg, isolation/machines get 1.25kg
-App.today.getIncrement = function(exerciseName) {
+// Weight step for progression. Prefer the smallest step actually used for this
+// exercise in recent history (real stack/plate increments), so targets stay
+// loadable. Fall back to equipment keywords when there isn't enough history.
+App.today.getIncrement = function(exerciseName, sessions) {
+  const all = sessions || Store.get(sessionsKey()) || [];
+  const weights = new Set();
+  let seen = 0;
+  for (let i = all.length - 1; i >= 0 && seen < 12; i--) {
+    const ex = all[i].exercises.find(e => e.name === exerciseName);
+    if (!ex) continue;
+    seen++;
+    ex.sets.forEach(s => { if (s.status === 'done' && s.actualWeight > 0) weights.add(s.actualWeight); });
+  }
+  const sorted = [...weights].sort((a, b) => a - b);
+  let step = Infinity;
+  for (let i = 1; i < sorted.length; i++) {
+    const d = Math.round((sorted[i] - sorted[i - 1]) * 100) / 100;
+    if (d > 0 && d < step) step = d;
+  }
+  if (step >= 1.25 && step <= 10) return step;
+
   const name = exerciseName.toLowerCase();
+  if (name.includes('dumbbell')) return 2.5;
   const compoundKeywords = ['bench', 'squat', 'deadlift', 'leg press', 'row', 'overhead press', 'military press', 'hip thrust', 'rack pull', 'barbell'];
   if (compoundKeywords.some(kw => name.includes(kw))) return 2.5;
   return 1.25;
@@ -1934,7 +1966,7 @@ App.today.applyAutoProgression = function(completedSession) {
     const templateWeight = templateEx.sets[0] ? templateEx.sets[0].targetWeight : 0;
     if (templateWeight === 0) return;
 
-    const increment = App.today.getIncrement(ex.name);
+    const increment = App.today.getIncrement(ex.name, allSessions);
     const doneSets = ex.sets.filter(s => s.status === 'done');
     const totalSets = ex.sets.length;
     const attemptedSets = ex.sets.filter(s => s.status !== 'skipped' && s.status !== null);
@@ -1990,6 +2022,19 @@ App.today.applyAutoProgression = function(completedSession) {
     // Scaled miss threshold: 30% of target reps (e.g. 2 reps on 6-rep set, 4 reps on 12-rep set)
     const missThreshold = Math.max(2, Math.round(avgTargetReps * 0.3));
 
+    // Ramp-back after a layoff: best top-set weight for this exercise in the
+    // last 120 days (excluding this session). If today's weight is well below
+    // it and all reps were hit, climb back in double steps, without overshooting.
+    let recentBest = 0;
+    const cutoff = Date.now() - 120 * 86400000;
+    for (let i = allSessions.length - 2; i >= 0; i--) {
+      if (new Date(allSessions[i].date).getTime() < cutoff) break;
+      const pe = allSessions[i].exercises.find(e => e.name === ex.name);
+      if (!pe) continue;
+      pe.sets.forEach(s => { if (s.status === 'done' && s.actualWeight > recentBest) recentBest = s.actualWeight; });
+    }
+    const rampingBack = recentBest > 0 && mainWeight + increment < recentBest;
+
     // Helper: adjust each template set by a delta, anchored to what was actually
     // lifted this session. delta 0 = hold at actual weights; positive/negative
     // = progress/regress from actual weights. Rounds to nearest 0.25kg.
@@ -2007,6 +2052,12 @@ App.today.applyAutoProgression = function(completedSession) {
       const newWeight = Math.max(0, mainWeight - increment);
       adjustTemplateWeights(-increment);
       changes.push({ exercise: ex.name, action: 'decrease', from: mainWeight, to: newWeight, reason: `Reps well below target (avg ${Math.round(avgRepDiff)} short)` });
+    } else if (hitAllReps && rpeOk && rampingBack) {
+      // RAMP BACK: below recent best after a layoff — double step, capped at the best
+      const delta = Math.min(increment * 2, Math.round((recentBest - mainWeight) * 4) / 4);
+      const newWeight = mainWeight + delta;
+      adjustTemplateWeights(delta);
+      changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason: `Ramping back towards ${recentBest}${unit}` });
     } else if (hitAllReps && avgRepExcess >= 2) {
       // CRUSHING IT: exceeded target by 2+ reps avg — increase even if recently increased
       const newWeight = mainWeight + increment;
