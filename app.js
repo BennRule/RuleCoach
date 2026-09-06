@@ -880,6 +880,8 @@ App.today.startWorkout = function(name) {
         name: ex.name,
         notes: ex.notes || '',
         defaultRest: ex.defaultRest || template.defaultRest || 120,
+        hold: !!ex.hold,
+        holdReason: ex.holdReason || '',
         rpe: null,
         sets: ex.sets.map((s, si) => {
           const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
@@ -892,7 +894,8 @@ App.today.startWorkout = function(name) {
           // Allow up to two steps so a ramp-back increase is honoured
           const templateMoved = prevSet && prevSet.actualWeight !== s.targetWeight &&
             Math.abs(s.targetWeight - prevSet.actualWeight) <= inc * 2 + 0.01;
-          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved || layoff);
+          // A held exercise always starts at the programme's fixed weight
+          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved || layoff || ex.hold);
           const startReps = useTemplate || !prevSet ? s.targetReps : prevSet.actualReps;
           const startWeight = useTemplate || !prevSet ? s.targetWeight : prevSet.actualWeight;
           return {
@@ -1363,7 +1366,7 @@ App.today.renderActiveSession = function(container) {
     html += `
     <div class="${cardClass}" id="exCard${ei}">
       <div class="exercise-header" onclick="App.today.toggleExercise(${ei})">
-        <span class="exercise-name">${esc(ex.name)}</span>
+        <span class="exercise-name">${esc(ex.name)}${ex.hold ? ` <span class="exercise-status-badge" style="background:var(--yellow);color:#000;font-size:10px;padding:2px 7px;vertical-align:middle;" title="${esc(ex.holdReason)}">Held</span>` : ''}</span>
         <span style="display:flex;align-items:center;gap:4px;">
           ${badge}
           <button class="btn btn-outline btn-sm" style="font-size:11px;padding:3px 8px;margin-left:8px;" onclick="event.stopPropagation();App.today.swapExercise(${ei})">Swap</button>
@@ -1972,6 +1975,13 @@ App.today.applyAutoProgression = function(completedSession) {
     const attemptedSets = ex.sets.filter(s => s.status !== 'skipped' && s.status !== null);
     // If all sets skipped (machine in use etc), skip progression entirely
     if (doneSets.length === 0) return;
+
+    // Held exercise (e.g. injury management): never change the template weight
+    if (templateEx.hold) {
+      const held = templateEx.sets[0].targetWeight;
+      changes.push({ exercise: ex.name, action: 'hold', from: held, to: held, reason: templateEx.holdReason || 'Held — no progression' });
+      return;
+    }
 
     // Use the ACTUAL weight lifted as the baseline, not the template target
     // This handles cases where the user adjusts weight during the workout
