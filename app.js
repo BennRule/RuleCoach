@@ -22,6 +22,7 @@ window.addEventListener('online', () => {
   updateOnlineStatus();
   // Push/pull anything that changed while offline
   if (typeof Sync !== 'undefined' && db) Sync.pullAll().catch(() => {});
+  if (typeof Watch !== 'undefined' && db) Watch.listen();
 });
 window.addEventListener('offline', updateOnlineStatus);
 updateOnlineStatus();
@@ -233,6 +234,75 @@ const Sync = {
       el.textContent = 'Not synced yet';
       el.className = '';
     }
+  }
+};
+
+// ---- Apple Watch command channel ----
+// A Shortcut on the watch writes {cmd, ts} to a Firestore doc; the app listens
+// live and acts on it (mark next set done, start rest). The app publishes a
+// small state doc (current exercise, next set, rest seconds) the Shortcut can
+// read to start a matching timer on the wrist.
+const Watch = {
+  DOC: 'rulecoach_watch',
+  STATE_DOC: 'rulecoach_watch_state',
+  _lastMs: Date.now(),
+  _unsub: null,
+
+  listen() {
+    if (!db || Watch._unsub) return;
+    Watch._unsub = db.collection(Sync.COLLECTION).doc(Watch.DOC).onSnapshot(doc => {
+      if (!doc.exists) return;
+      const d = doc.data();
+      const ms = d.ts ? new Date(d.ts).getTime() : 0;
+      if (!d.cmd || !ms || ms <= Watch._lastMs) return;
+      Watch._lastMs = ms;
+      if (Date.now() - ms > 90000) return; // stale command, ignore
+      Watch.handle(String(d.cmd).toLowerCase());
+    }, err => { console.warn('Watch listener:', err.message); Watch._unsub = null; });
+  },
+
+  nextPendingSet() {
+    if (!App.activeSession) return null;
+    const exs = App.activeSession.exercises;
+    for (let ei = 0; ei < exs.length; ei++) {
+      for (let si = 0; si < exs[ei].sets.length; si++) {
+        if (exs[ei].sets[si].status === null) return { ei, si };
+      }
+    }
+    return null;
+  },
+
+  handle(cmd) {
+    if (!App.activeSession) return;
+    if (App.currentScreen !== 'today') App.nav('today');
+    const loc = Watch.nextPendingSet();
+    if (cmd === 'done' && loc) {
+      App.today.markSet(loc.ei, loc.si, 'done');
+    } else if (cmd === 'skip' && loc) {
+      App.today.markSet(loc.ei, loc.si, 'skipped');
+    } else if (cmd === 'rest') {
+      App.today.startGlobalRest(App._lastCompletedExIdx);
+    } else if (cmd === 'stop') {
+      App.today.stopGlobalRest();
+    }
+  },
+
+  publishState() {
+    if (!db) return;
+    const state = { active: false, exercise: '', nextSet: '', restSeconds: 120, updatedAt: new Date().toISOString() };
+    if (App.activeSession) {
+      state.active = true;
+      const loc = Watch.nextPendingSet();
+      if (loc) {
+        const ex = App.activeSession.exercises[loc.ei];
+        state.exercise = ex.name;
+        state.nextSet = `Set ${loc.si + 1} of ${ex.sets.length}`;
+        state.restSeconds = ex.defaultRest || 120;
+      } else {
+        state.exercise = 'All sets done';
+      }
+    }
+    db.collection(Sync.COLLECTION).doc(Watch.STATE_DOC).set(state).catch(() => {});
   }
 };
 
@@ -735,6 +805,7 @@ App.init = function() {
 
   // Cloud sync: pull from Firestore (non-blocking)
   if (db && navigator.onLine) {
+    Watch.listen();
     Sync.pullAll().then(() => {
       // Adopt an in-progress session synced from another device — only if idle here,
       // not already finished (saved to history), and recent enough to plausibly be live
@@ -945,6 +1016,7 @@ App.today.saveActive = function() {
     session: App.activeSession,
     startTime: App.workoutStartTime
   });
+  Watch.publishState();
 };
 
 App.today.saveNotes = function(value) {
@@ -1344,10 +1416,27 @@ App.today.toggleExerciseUnit = function(ei) {
   App.today.renderActiveSession(document.getElementById('todayContent'));
 };
 
+// Keep the screen on for the whole workout (not just during rests) so the
+// watch command channel and rest timer keep running on the phone.
+App.today.holdSessionWakeLock = function() {
+  if (!('wakeLock' in navigator) || App._sessionWakeLock || document.visibilityState !== 'visible') return;
+  navigator.wakeLock.request('screen').then(lock => {
+    App._sessionWakeLock = lock;
+    lock.addEventListener('release', () => { App._sessionWakeLock = null; });
+  }).catch(() => {});
+};
+App.today.releaseSessionWakeLock = function() {
+  if (App._sessionWakeLock) { try { App._sessionWakeLock.release(); } catch(_) {} App._sessionWakeLock = null; }
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && App.activeSession) App.today.holdSessionWakeLock();
+});
+
 App.today.renderActiveSession = function(container) {
   const session = App.activeSession;
   const settings = Store.get('rulecoach_settings') || {};
   const unit = settings.units || 'kg';
+  App.today.holdSessionWakeLock();
 
   let html = `
     <div class="workout-header">
@@ -1682,15 +1771,21 @@ App.today.startGlobalRest = function(ei) {
       osc.stop(ctx.currentTime + 0.5);
     } catch(e) {}
 
-    // Browser notification (fires even when tab is in background)
+    // Notification. iOS home-screen web apps only support notifications via the
+    // service worker registration; when the phone is locked these mirror to the
+    // Apple Watch. Fall back to the plain constructor elsewhere.
     try {
       if ('Notification' in window && Notification.permission === 'granted') {
-        const n = new Notification('Rest complete', {
-          body: exerciseName + ' — time for the next set',
-          tag: 'rulecoach-rest',
-          silent: false
+        const opts = { body: exerciseName + ' — time for the next set', tag: 'rulecoach-rest', silent: false };
+        const viaSw = navigator.serviceWorker && navigator.serviceWorker.ready
+          ? navigator.serviceWorker.ready.then(reg => reg.showNotification('Rest complete', opts))
+          : Promise.reject();
+        viaSw.catch(() => {
+          try {
+            const n = new Notification('Rest complete', opts);
+            setTimeout(() => { try { n.close(); } catch(_) {} }, 8000);
+          } catch(_) {}
         });
-        setTimeout(() => { try { n.close(); } catch(_) {} }, 8000);
       }
     } catch(e) {}
 
@@ -1918,6 +2013,7 @@ App.today.finishWorkout = function() {
   App.activeSession = null;
   App.workoutStartTime = null;
   Store.set('rulecoach_active_session', { session: null, startTime: null });
+  App.today.releaseSessionWakeLock();
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
@@ -2156,6 +2252,7 @@ App.today.confirmCancelWorkout = function() {
   App.activeSession = null;
   App.workoutStartTime = null;
   Store.set('rulecoach_active_session', { session: null, startTime: null });
+  App.today.releaseSessionWakeLock();
   if (App.workoutElapsedInterval) clearInterval(App.workoutElapsedInterval);
   App.today.stopGlobalRest();
   document.getElementById('finishFab').classList.remove('show');
@@ -2696,6 +2793,40 @@ App.settings.updateBonnyWeekButtons = function() {
   if (!btnA || !btnB) return;
   btnA.className = week === 'A' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
   btnB.className = week === 'B' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+};
+
+App.settings.showWatchSetup = function() {
+  const base = 'https://firestore.googleapis.com/v1/projects/rulecoach-c2fba/databases/%28default%29/documents/rulecoach/';
+  const stateUrl = base + 'rulecoach_watch_state';
+  const cmdUrl = base + 'rulecoach_watch';
+  const bodyText = '{"fields":{"cmd":{"stringValue":"done"},"ts":{"stringValue":"DATE"}}}';
+  const copyBtn = (txt) => `<button class="btn btn-outline btn-sm" style="min-height:32px;padding:4px 10px;font-size:12px;margin-left:8px;" onclick="navigator.clipboard.writeText('${escJs(txt)}');this.textContent='Copied'">Copy</button>`;
+  App.modal.open(`
+    <h2>Apple Watch Setup</h2>
+    <p style="color:var(--text-dim);font-size:14px;line-height:1.6;margin-bottom:12px;">
+      One Shortcut, one tap on the wrist: marks your next set done in the app, starts the
+      app's rest timer, and starts a matching timer on the watch so it buzzes when rest is up.
+      Keep Rule Coach open on the phone while training.
+    </p>
+    <ol style="font-size:14px;line-height:1.8;padding-left:20px;color:var(--text);">
+      <li>Shortcuts app on iPhone: <b>+</b>, name it <b>Set Done</b></li>
+      <li>Add <b>Get Contents of URL</b>. Method GET. URL:
+        <div style="font-size:11px;word-break:break-all;color:var(--text-dim);margin:4px 0;">${stateUrl}${copyBtn(stateUrl)}</div></li>
+      <li>Add <b>Get Dictionary Value</b> three times: key <b>fields</b>, then <b>restSeconds</b>, then <b>integerValue</b>. Rename the result <b>Rest</b>.</li>
+      <li>Add <b>Date</b> (Current Date), then <b>Format Date</b> with format <b>ISO 8601</b>. Rename it <b>Now</b>.</li>
+      <li>Add <b>Text</b> and paste this, replacing DATE with the <b>Now</b> variable:
+        <div style="font-size:11px;word-break:break-all;color:var(--text-dim);margin:4px 0;">${esc(bodyText)}${copyBtn(bodyText)}</div></li>
+      <li>Add <b>Get Contents of URL</b>. Method <b>PATCH</b>. Headers: <b>Content-Type</b> = <b>application/json</b>. Request Body: <b>File</b>, choose the Text above. URL:
+        <div style="font-size:11px;word-break:break-all;color:var(--text-dim);margin:4px 0;">${cmdUrl}${copyBtn(cmdUrl)}</div></li>
+      <li>Add <b>Start Timer</b> with duration <b>Rest</b> seconds.</li>
+      <li>In the shortcut's details, turn on <b>Show on Apple Watch</b>. Add the Shortcuts complication to your watch face for one-tap access.</li>
+    </ol>
+    <p style="color:var(--text-dim);font-size:13px;line-height:1.6;margin-top:12px;">
+      Duplicate it as <b>Rest</b> with "rest" instead of "done" in the Text to start a rest without marking a set,
+      or <b>Skip</b> with "skip". Rest complete notifications from the phone also mirror to the watch when the phone is locked.
+    </p>
+    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="App.modal.forceClose()">Close</button>
+  `);
 };
 
 App.settings.showHealthSetup = function() {
