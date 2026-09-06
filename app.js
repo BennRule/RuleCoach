@@ -1059,6 +1059,8 @@ const EXERCISE_DB = {
 
   // Cardio
   '10 Minute Bike':                           { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+  '20 Minute Bike':                           { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
+  '15 Minute Incline Walk':                   { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
   '5 Minute Treadmill Warmup':                { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
   'Treadmill':                                { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
   'Rowing Machine':                           { muscle: 'Cardio', pattern: 'Cardio', equipment: 'Machine' },
