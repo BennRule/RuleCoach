@@ -786,11 +786,28 @@ App.today.getTodayWorkout = function() {
     if (!name) return null;
     return getBonnyProgramme().find(w => w.name === name) || null;
   }
-  const dow = new Date().getDay();
-  const workoutName = SCHEDULE[dow];
-  if (!workoutName) return null;
+  // Rotation, not weekday: the next workout is whichever follows the most
+  // recently completed one in programme order, so a short week still cycles
+  // through every session (legs included) rather than dropping Friday's.
   const programme = Store.get('rulecoach_programme') || [];
-  return programme.find(w => w.name === workoutName) || null;
+  if (!programme.length) return null;
+  const sessions = Store.get(sessionsKey()) || [];
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const idx = programme.findIndex(w => w.name === sessions[i].workoutName);
+    if (idx >= 0) return programme[(idx + 1) % programme.length];
+  }
+  return programme[0];
+};
+
+// Days since this workout was last completed, or null if never
+App.today.daysSinceWorkout = function(workoutName) {
+  const sessions = Store.get(sessionsKey()) || [];
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    if (sessions[i].workoutName === workoutName) {
+      return Math.floor((Date.now() - new Date(sessions[i].date).getTime()) / 86400000);
+    }
+  }
+  return null;
 };
 
 App.today.render = function() {
@@ -810,9 +827,9 @@ App.today.render = function() {
   if (!workout) {
     container.innerHTML = `
       <div class="rest-day-msg">
-        <h2>Rest Day</h2>
-        <p>Recovery is part of the programme. Come back stronger tomorrow.</p>
-        <button class="btn btn-outline" style="margin-top:24px" onclick="App.today.startAnyWorkout()">Start a workout anyway</button>
+        <h2>No programme</h2>
+        <p>Set up a programme on the Programme tab, or sync from the cloud in Settings.</p>
+        <button class="btn btn-outline" style="margin-top:24px" onclick="App.nav('settings')">Go to Settings</button>
       </div>`;
     document.getElementById('finishFab').classList.remove('show');
     return;
@@ -821,13 +838,16 @@ App.today.render = function() {
   const settings = Store.get('rulecoach_settings') || {};
   const user = settings.user || 'benn';
   const greeting = `Hey ${user.charAt(0).toUpperCase() + user.slice(1)}`;
+  const since = App.today.daysSinceWorkout(workout.name);
+  const lastDone = since === null ? 'Not done yet' : since === 0 ? 'Last done today' : since === 1 ? 'Last done yesterday' : `Last done ${since} days ago`;
 
   container.innerHTML = `
     <h1 class="screen-title">${greeting}</h1>
     <div class="card">
+      <div style="font-size:11px;font-weight:700;color:var(--accent-light);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Next in rotation</div>
       <h2 style="font-size:20px;font-weight:700;">${esc(workout.name)}</h2>
-      <p style="font-size:14px;color:var(--text-dim);margin-top:2px;">${esc(workout.subtitle)} — ${esc(workout.day)}</p>
-      <p style="font-size:13px;color:var(--text-dim);margin-top:4px;">${workout.exercises.length} exercises</p>
+      <p style="font-size:14px;color:var(--text-dim);margin-top:2px;">${esc(workout.subtitle)}</p>
+      <p style="font-size:13px;color:var(--text-dim);margin-top:4px;">${workout.exercises.length} exercises · ${lastDone}</p>
       <button class="btn btn-primary btn-block" style="margin-top:16px" onclick="App.today.startWorkout('${escJs(workout.name)}')">
         Start Workout
       </button>
@@ -2719,13 +2739,64 @@ App.bodyweight.log = function() {
 };
 
 App.bodyweight.render = function() {
-  const entries = (Store.get('rulecoach_bodyweight') || []).slice(-10).reverse();
+  const all = Store.get('rulecoach_bodyweight') || [];
+  const entries = all.slice(-10).reverse();
   const el = document.getElementById('bwHistory');
   if (!el) return;
-  if (entries.length === 0) { el.innerHTML = 'No entries yet.'; return; }
-  el.innerHTML = entries.map(e => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
-    <span>${formatDate(e.date)}</span><span style="color:var(--text);font-weight:600;">${e.weight} kg</span>
-  </div>`).join('');
+  if (entries.length === 0) { el.innerHTML = 'No entries yet.'; }
+  else {
+    el.innerHTML = entries.map(e => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
+      <span>${formatDate(e.date)}</span><span style="color:var(--text);font-weight:600;">${e.weight} kg</span>
+    </div>`).join('');
+  }
+  App.bodyweight.renderTrend(all);
+};
+
+// 12-week trend: sparkline plus the change over the last 4 weeks
+App.bodyweight.renderTrend = function(all) {
+  const trendEl = document.getElementById('bwTrend');
+  const canvas = document.getElementById('bwChart');
+  if (!trendEl || !canvas) return;
+  const cutoff = Date.now() - 84 * 86400000;
+  const pts = all.filter(e => new Date(e.date).getTime() >= cutoff).map(e => ({ t: new Date(e.date).getTime(), w: e.weight }));
+  if (pts.length < 2) {
+    trendEl.textContent = 'Log weekly to see a trend.';
+    canvas.style.display = 'none';
+    return;
+  }
+  const latest = pts[pts.length - 1];
+  const fourWeeksAgo = latest.t - 28 * 86400000;
+  // Nearest entry at or before 4 weeks ago, else the oldest in range
+  const ref = [...pts].reverse().find(p => p.t <= fourWeeksAgo) || pts[0];
+  const spanDays = Math.max(1, (latest.t - ref.t) / 86400000);
+  const change = Math.round((latest.w - ref.w) * 10) / 10;
+  const perWeek = Math.round((change / spanDays) * 7 * 100) / 100;
+  const sign = change > 0 ? '+' : '';
+  trendEl.textContent = `${sign}${change} kg over ${Math.round(spanDays)} days (${sign}${perWeek} kg/week)`;
+  trendEl.style.color = change < 0 ? 'var(--green)' : change > 0 ? 'var(--yellow)' : 'var(--text-dim)';
+
+  canvas.style.display = 'block';
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const W = rect.width || 300, H = 90;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  const pad = { l: 36, r: 8, t: 8, b: 8 };
+  const minW = Math.min(...pts.map(p => p.w)) - 0.5, maxW = Math.max(...pts.map(p => p.w)) + 0.5;
+  const t0 = pts[0].t, t1 = latest.t || t0 + 1;
+  const x = p => pad.l + ((p.t - t0) / Math.max(1, t1 - t0)) * (W - pad.l - pad.r);
+  const y = p => pad.t + (1 - (p.w - minW) / (maxW - minW)) * (H - pad.t - pad.b);
+  ctx.strokeStyle = '#2d2d44'; ctx.lineWidth = 1;
+  [minW + 0.5, maxW - 0.5].forEach(v => { const yy = y({ w: v }); ctx.beginPath(); ctx.moveTo(pad.l, yy); ctx.lineTo(W - pad.r, yy); ctx.stroke(); });
+  ctx.fillStyle = '#94a3b8'; ctx.font = '10px system-ui'; ctx.textAlign = 'right';
+  ctx.fillText((maxW - 0.5).toFixed(1), pad.l - 4, y({ w: maxW - 0.5 }) + 3);
+  ctx.fillText((minW + 0.5).toFixed(1), pad.l - 4, y({ w: minW + 0.5 }) + 3);
+  ctx.strokeStyle = '#a78bfa'; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((p, i) => i ? ctx.lineTo(x(p), y(p)) : ctx.moveTo(x(p), y(p)));
+  ctx.stroke();
+  pts.forEach(p => { ctx.beginPath(); ctx.arc(x(p), y(p), 3, 0, Math.PI * 2); ctx.fillStyle = '#7c3aed'; ctx.fill(); });
 };
 
 App.data.exportData = function() {
