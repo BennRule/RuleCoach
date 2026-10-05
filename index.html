@@ -63,15 +63,23 @@
         </div>
       </div>
       <div class="settings-section">
-        <h3>Bodyweight</h3>
+        <h3>Bodyweight &amp; Waist</h3>
         <div class="form-group">
-          <label>Today's Weight (kg)</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="number" id="bwInput" step="0.1" inputmode="decimal" placeholder="e.g. 85.5">
+          <div style="display:flex;gap:8px;align-items:flex-end;">
+            <div style="flex:1;min-width:0;">
+              <label>Weight (kg)</label>
+              <input type="number" id="bwInput" step="0.1" inputmode="decimal" placeholder="89.5">
+            </div>
+            <div style="flex:1;min-width:0;">
+              <label>Waist (cm)</label>
+              <input type="number" id="waistInput" step="0.5" inputmode="decimal" placeholder="94">
+            </div>
             <button class="btn btn-primary" onclick="App.bodyweight.log()">Log</button>
           </div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">Fill in either or both. A second entry on the same day updates that day's entry.</div>
         </div>
         <div id="bwTrend" style="margin-top:12px;font-size:13px;font-weight:600;color:var(--text-dim);"></div>
+        <div id="waistTrend" style="margin-top:4px;font-size:13px;font-weight:600;color:var(--text-dim);"></div>
         <canvas id="bwChart" style="display:none;width:100%;height:90px;margin-top:8px;background:var(--card);border-radius:8px;"></canvas>
         <div id="bwHistory" style="margin-top:12px;font-size:13px;color:var(--text-dim);"></div>
       </div>

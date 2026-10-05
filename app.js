@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '5 Oct 2026, build 45';
+const APP_BUILD = '5 Oct 2026, build 46';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -134,7 +134,7 @@ const Sync = {
             // Entries without an id (bodyweight) are matched on date + weight, so
             // the same entry is never merged back in as a duplicate
             const keyOf = (s, i, prefix) => s && s.id ? s.id
-              : s && s.date ? 'd:' + s.date + ':' + s.weight : prefix + i;
+              : s && s.date ? 'd:' + s.date : prefix + i;
             const localIds = new Set(val.map((s, i) => keyOf(s, i, 'idx-')));
             const onlyInRemote = remoteArr.filter((s, i) => !localIds.has(keyOf(s, i, 'remote-idx-')));
             if (onlyInRemote.length > 0) {
@@ -2130,7 +2130,8 @@ App.today.finishWorkout = function() {
 
   // Calorie estimate: MET 3.5 (strength training) x 3.5 x bodyweight(kg) / 200 per minute
   const bwEntries = Store.get('rulecoach_bodyweight') || [];
-  const bw = bwEntries.length ? bwEntries[bwEntries.length - 1].weight : 85;
+  const lastBw = [...bwEntries].reverse().find(e => e.weight != null);
+  const bw = lastBw ? lastBw.weight : 85;
   const estKcal = Math.round(3.5 * 3.5 * bw / 200 * Math.max(1, elapsed));
 
   let progressionHtml = '';
@@ -3086,12 +3087,20 @@ App.data = {};
 App.bodyweight = {};
 
 App.bodyweight.log = function() {
-  const val = parseFloat(document.getElementById('bwInput').value);
-  if (!val || val < 30 || val > 300) return;
+  const wEl = document.getElementById('bwInput'), cEl = document.getElementById('waistInput');
+  let weight = parseFloat(wEl.value), waist = cEl ? parseFloat(cEl.value) : NaN;
+  if (!(weight >= 30 && weight <= 300)) weight = null;
+  if (!(waist >= 40 && waist <= 200)) waist = null;
+  if (weight === null && waist === null) return;
   const entries = Store.get('rulecoach_bodyweight') || [];
-  entries.push({ date: new Date().toISOString(), weight: val });
+  // One entry per day: a second log on the same day fills in or corrects it
+  const today = new Date().toDateString();
+  let entry = [...entries].reverse().find(e => new Date(e.date).toDateString() === today);
+  if (!entry) { entry = { date: new Date().toISOString() }; entries.push(entry); }
+  if (weight !== null) entry.weight = weight;
+  if (waist !== null) entry.waist = waist;
   Store.set('rulecoach_bodyweight', entries);
-  document.getElementById('bwInput').value = '';
+  wEl.value = ''; if (cEl) cEl.value = '';
   App.bodyweight.render();
 };
 
@@ -3099,7 +3108,7 @@ App.bodyweight.render = function() {
   // Drop exact duplicates left by an old sync bug
   const seen = new Set();
   const all = (Store.get('rulecoach_bodyweight') || []).filter(e => {
-    const k = e.date + ':' + e.weight;
+    const k = e.date;
     if (seen.has(k)) return false;
     seen.add(k); return true;
   });
@@ -3109,10 +3118,26 @@ App.bodyweight.render = function() {
   if (entries.length === 0) { el.innerHTML = 'No entries yet.'; }
   else {
     el.innerHTML = entries.map(e => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);">
-      <span>${formatDate(e.date)}</span><span style="color:var(--text);font-weight:600;">${e.weight} kg</span>
+      <span>${formatDate(e.date)}</span><span style="color:var(--text);font-weight:600;">${[e.weight != null ? e.weight + ' kg' : '', e.waist != null ? e.waist + ' cm' : ''].filter(Boolean).join(' · ')}</span>
     </div>`).join('');
   }
-  App.bodyweight.renderTrend(all);
+  App.bodyweight.renderTrend(all.filter(e => e.weight != null));
+  App.bodyweight.renderWaistTrend(all.filter(e => e.waist != null));
+};
+
+// Waist change against the entry nearest to 4 weeks back
+App.bodyweight.renderWaistTrend = function(pts) {
+  const el = document.getElementById('waistTrend');
+  if (!el) return;
+  if (pts.length === 0) { el.textContent = ''; return; }
+  const latest = pts[pts.length - 1];
+  if (pts.length < 2) { el.textContent = `Waist ${latest.waist} cm`; el.style.color = 'var(--text-dim)'; return; }
+  const t = e => new Date(e.date).getTime();
+  const ref = [...pts].reverse().find(p => t(p) <= t(latest) - 28 * 86400000) || pts[0];
+  const days = Math.max(1, Math.round((t(latest) - t(ref)) / 86400000));
+  const change = Math.round((latest.waist - ref.waist) * 10) / 10;
+  el.textContent = `Waist ${latest.waist} cm, ${change > 0 ? '+' : ''}${change} cm over ${days} days`;
+  el.style.color = change < 0 ? 'var(--green)' : change > 0 ? 'var(--yellow)' : 'var(--text-dim)';
 };
 
 // 12-week trend: sparkline plus the change over the last 4 weeks
