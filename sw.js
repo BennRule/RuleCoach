@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v42';
+const CACHE_NAME = 'rulecoach-v43';
 
 // Force activate when told to skip waiting
 self.addEventListener('message', e => {
@@ -44,8 +44,13 @@ self.addEventListener('fetch', e => {
   const isOwnAsset = url.pathname.endsWith('.html') || url.pathname.endsWith('.js') ||
     url.pathname.endsWith('.css') || url.pathname.endsWith('.json') || url.pathname.endsWith('/');
   if (isOwnAsset) {
+    // GitHub Pages serves files with a 10-minute browser cache. Revalidate on
+    // every load so a new deploy shows up straight away, not 10 minutes later.
+    const fresh = e.request.method === 'GET' && url.origin === self.location.origin
+      ? fetch(e.request.url, { cache: 'no-cache' })
+      : fetch(e.request);
     e.respondWith(
-      fetch(e.request).then(resp => {
+      fresh.then(resp => {
         const clone = resp.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
         return resp;

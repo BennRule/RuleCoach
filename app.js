@@ -2,6 +2,9 @@
    Rule Coach — Personal Training Tracker PWA
    ============================================================ */
 
+// Shown at the bottom of Settings so you can tell which build the phone is running
+const APP_BUILD = '5 Oct 2026, build 43';
+
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -3088,5 +3091,26 @@ App.modal.forceClose = function() {
   overlay.classList.remove('show');
 };
 
+// Force the latest version: drop the service worker and its caches, then reload
+App.settings.forceUpdate = async function() {
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if (window.caches) {
+      const names = await caches.keys();
+      await Promise.all(names.map(n => caches.delete(n)));
+    }
+    await fetch('app.js', { cache: 'reload' }).catch(() => {});
+    await fetch('./', { cache: 'reload' }).catch(() => {});
+  } catch (e) {}
+  location.reload();
+};
+
 // ---- Boot ----
-document.addEventListener('DOMContentLoaded', App.init);
+document.addEventListener('DOMContentLoaded', () => {
+  const v = document.getElementById('versionInfo');
+  if (v) v.textContent = 'Rule Coach — ' + APP_BUILD;
+  App.init();
+});
