@@ -1569,8 +1569,8 @@ App.today.renderActiveSession = function(container) {
       html += `
         <div class="${rowClass}" id="setRow${ei}_${si}">
           <div class="set-info">
-            <div class="set-label">S${si + 1}</div>
-            <div class="set-target">${targetLabel}</div>
+            <div class="set-label">S${si + 1}${s.extra ? '+' : ''}</div>
+            <div class="set-target">${s.extra ? 'Extra set' : targetLabel}</div>
             ${lastTimeHtml}
           </div>
           <div class="set-inputs">
@@ -1585,8 +1585,10 @@ App.today.renderActiveSession = function(container) {
           <div class="set-actions">
             <button class="set-btn set-btn-done ${s.status === 'done' ? 'active' : ''}"
               onclick="App.today.markSet(${ei},${si},'done')">&#10003;</button>
-            <button class="set-btn set-btn-skip ${s.status === 'skipped' ? 'active' : ''}"
-              onclick="App.today.markSet(${ei},${si},'skipped')">S</button>
+            ${s.extra
+              ? `<button class="set-btn set-btn-skip" title="Remove extra set" onclick="App.today.removeSet(${ei},${si})">&#10005;</button>`
+              : `<button class="set-btn set-btn-skip ${s.status === 'skipped' ? 'active' : ''}"
+              onclick="App.today.markSet(${ei},${si},'skipped')">S</button>`}
           </div>
         </div>`;
     });
@@ -1601,6 +1603,7 @@ App.today.renderActiveSession = function(container) {
               ${[1,2,3,4,5,6,7,8,9,10].map(n => `<option value="${n}" ${ex.rpe == n ? 'selected' : ''}>${n}</option>`).join('')}
             </select>
           </div>
+          ${isCardioExercise ? '' : `<button class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="App.today.addSet(${ei})">+ Set</button>`}
         </div>
       </div>
     </div>`;
@@ -1676,6 +1679,36 @@ App.today.markSet = function(ei, si, status) {
   if (wasNull && (s.status === 'done' || s.status === 'failed')) {
     App.today.toggleRest(ei);
   }
+};
+
+// Extra set on the fly: copies the last set's weight and reps. Logged in history
+// and volume, but ignored by auto-progression so a bonus set can't hold you back.
+App.today.addSet = function(ei) {
+  if (!App.activeSession) return;
+  const ex = App.activeSession.exercises[ei];
+  const last = ex.sets[ex.sets.length - 1];
+  if (!last) return;
+  ex.sets.push({
+    targetReps: last.actualReps || last.targetReps,
+    targetWeight: last.actualWeight != null ? last.actualWeight : last.targetWeight,
+    repRange: last.repRange || '',
+    note: '',
+    actualReps: last.actualReps || last.targetReps,
+    actualWeight: last.actualWeight != null ? last.actualWeight : last.targetWeight,
+    status: null,
+    extra: true
+  });
+  App.today.saveActive();
+  App.today.renderActiveSession(document.getElementById('todayContent'));
+};
+
+App.today.removeSet = function(ei, si) {
+  if (!App.activeSession) return;
+  const ex = App.activeSession.exercises[ei];
+  if (!ex.sets[si] || !ex.sets[si].extra) return;
+  ex.sets.splice(si, 1);
+  App.today.saveActive();
+  App.today.renderActiveSession(document.getElementById('todayContent'));
 };
 
 App.today.setRpe = function(ei, value) {
@@ -1926,7 +1959,8 @@ App.today.finishWorkout = function() {
         targetWeight: s.targetWeight,
         actualReps: s.actualReps,
         actualWeight: s.actualWeight,
-        status: s.status
+        status: s.status,
+        ...(s.extra ? { extra: true } : {})
       }))
     }))
   };
@@ -2112,9 +2146,10 @@ App.today.applyAutoProgression = function(completedSession) {
     if (templateWeight === 0) return;
 
     const increment = App.today.getIncrement(ex.name, allSessions);
-    const doneSets = ex.sets.filter(s => s.status === 'done');
-    const totalSets = ex.sets.length;
-    const attemptedSets = ex.sets.filter(s => s.status !== 'skipped' && s.status !== null);
+    const progSets = ex.sets.filter(s => !s.extra);
+    const doneSets = progSets.filter(s => s.status === 'done');
+    const totalSets = progSets.length;
+    const attemptedSets = progSets.filter(s => s.status !== 'skipped' && s.status !== null);
     // If all sets skipped (machine in use etc), skip progression entirely
     if (doneSets.length === 0) return;
 
@@ -2351,7 +2386,7 @@ App.history.render = function() {
         if (set.status === 'failed') cls += ' failed';
         if (set.status === 'skipped') cls += ' skipped';
         const statusIcon = set.status === 'done' ? '' : set.status === 'failed' ? ' (Failed)' : ' (Skipped)';
-        html += `<div class="${cls}">Set ${si+1}: ${set.actualWeight}${unit} x ${set.actualReps}${statusIcon}</div>`;
+        html += `<div class="${cls}">Set ${si+1}${set.extra ? ' (extra)' : ''}: ${set.actualWeight}${unit} x ${set.actualReps}${statusIcon}</div>`;
       });
       if (ex.rpe) html += `<div class="history-rpe">RPE: ${ex.rpe}</div>`;
       html += '</div>';
