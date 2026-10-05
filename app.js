@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '5 Oct 2026, build 43';
+const APP_BUILD = '5 Oct 2026, build 44';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -949,6 +949,54 @@ App.today.getLastSessionData = function(workoutName) {
   return null;
 };
 
+// Machines loaded on more than one peg. The app records the split per set and
+// carries it forward, so the prescription never goes stale.
+const PEG_MACHINES = {
+  'Seated Knee Extension (tri-set)': ['Bottom', 'Mid', 'Top'],
+  'Plate Loaded Lat Pulldown': ['Mid', 'Top']
+};
+function pegLabels(exName) { return PEG_MACHINES[exName] || null; }
+function pegSum(pegs) {
+  if (!Array.isArray(pegs) || !pegs.length || pegs.some(v => v === null || v === '' || isNaN(v))) return null;
+  return Math.round(pegs.reduce((a, b) => a + Number(b), 0) * 100) / 100;
+}
+// A set note that is just an old peg split ("40/20/25kg tri-set", "65kg mid / 40kg top")
+function isPegNote(note) { return /\d+\s*(kg)?\s*(mid|top|bottom)?\s*\/\s*\d+/i.test(note || ''); }
+
+// The same exercise can appear on several days. Where a set has the same rep
+// range on another day, the two share one weight: this finds the matching set
+// index in another day's version of the exercise (or -1).
+App.today.linkedSetIndex = function(otherEx, repRange, si) {
+  if (!otherEx || !repRange) return -1;
+  if (otherEx.sets[si] && otherEx.sets[si].repRange === repRange) return si;
+  return otherEx.sets.findIndex(t => t.repRange === repRange);
+};
+
+// Most recent completed set for this exercise at this rep range, on any day
+App.today.lastLinkedSet = function(programme, sessions, workoutName, exName, repRange, si) {
+  const where = {};
+  programme.forEach(w => {
+    const e = w.exercises.find(x => x.name === exName);
+    if (!e) return;
+    const j = w.name === workoutName ? si : App.today.linkedSetIndex(e, repRange, si);
+    if (j >= 0) where[w.name] = j;
+  });
+  for (let i = sessions.length - 1; i >= 0; i--) {
+    const j = where[sessions[i].workoutName];
+    if (j === undefined) continue;
+    const pe = sessions[i].exercises.find(x => x.name === exName);
+    const set = pe && pe.sets[j];
+    if (set && set.status === 'done' && !set.extra) {
+      // The programme target that day's version of the set now carries
+      const w = programme.find(x => x.name === sessions[i].workoutName);
+      const e = w && w.exercises.find(x => x.name === exName);
+      const tmplWeight = e && e.sets[j] ? e.sets[j].targetWeight : null;
+      return { set, from: sessions[i].workoutName, tmplWeight };
+    }
+  }
+  return null;
+};
+
 App.today.startWorkout = function(name) {
   const settings = Store.get('rulecoach_settings') || {};
   const user = settings.user || 'benn';
@@ -978,33 +1026,47 @@ App.today.startWorkout = function(name) {
         holdReason: ex.holdReason || '',
         rpe: null,
         sets: ex.sets.map((s, si) => {
-          const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null;
+          // Last time this set was done, on this day or any day sharing its rep range
+          const linked = App.today.lastLinkedSet(programme, allSessions, template.name, ex.name, s.repRange || '', si);
+          const prevSet = linked ? linked.set
+            : (prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done' ? prevEx.sets[si] : null);
+          const labels = pegLabels(ex.name);
+          const startPegs = labels
+            ? (prevSet && Array.isArray(prevSet.pegs) ? prevSet.pegs.slice()
+              : Array.isArray(s.pegs) ? s.pegs.slice() : labels.map(() => null))
+            : null;
           // Auto-progression writes new target weights into the programme template.
           // Trust the template only when it differs from last actuals by at most one
           // progression increment (a deliberate increase/decrease). A bigger gap means
           // the template is stale — carry last session's actuals instead so targets
           // never slip backwards.
           const inc = App.today.getIncrement(ex.name, allSessions);
+          // If the set was last done on another day, that day's programme target is
+          // the freshest progression decision — use it as this set's target too.
+          const tmplTarget = !ex.hold && linked && linked.from !== template.name && linked.tmplWeight > 0
+            ? linked.tmplWeight : s.targetWeight;
           // Allow up to two steps so a ramp-back increase is honoured
-          const templateMoved = prevSet && prevSet.actualWeight !== s.targetWeight &&
-            Math.abs(s.targetWeight - prevSet.actualWeight) <= inc * 2 + 0.01;
+          const templateMoved = prevSet && prevSet.actualWeight !== tmplTarget &&
+            Math.abs(tmplTarget - prevSet.actualWeight) <= inc * 2 + 0.01;
           // A held exercise always starts at the programme's fixed weight
-          const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved || layoff || ex.hold);
+          const useTemplate = tmplTarget > 0 && (!prevSet || templateMoved || layoff || ex.hold);
           // Rep target: never below the programmed reps, and ratchet up from last
           // time only as far as the top of the rep range
           const rangeTop = parseInt(String(s.repRange || '').split('-').pop()) || s.targetReps;
           const startReps = useTemplate || !prevSet
             ? s.targetReps
             : Math.max(s.targetReps, Math.min(prevSet.actualReps, Math.max(rangeTop, s.targetReps)));
-          const startWeight = useTemplate || !prevSet ? s.targetWeight : prevSet.actualWeight;
+          const startWeight = useTemplate || !prevSet ? tmplTarget : prevSet.actualWeight;
           return {
             targetReps: startReps,
             targetWeight: startWeight,
             repRange: s.repRange || '',
-            note: s.note || '',
+            note: labels && isPegNote(s.note) ? '' : (s.note || ''),
             actualReps: startReps,
             actualWeight: startWeight,
-            status: null
+            status: null,
+            ...(prevSet ? { lastWeight: prevSet.actualWeight, lastReps: prevSet.actualReps, lastFrom: linked ? linked.from : template.name } : {}),
+            ...(labels ? { pegs: startPegs } : {})
           };
         })
       };
@@ -1565,9 +1627,29 @@ App.today.renderActiveSession = function(container) {
         : null;
       const prevSet = prevEx && prevEx.sets[si] && prevEx.sets[si].status === 'done'
         ? prevEx.sets[si] : null;
-      const lastTimeHtml = prevSet
-        ? `<div class="set-last-time">Last: ${prevSet.actualWeight}${exUnit} x ${prevSet.actualReps}</div>`
-        : '';
+      const lastTimeHtml = s.extra ? ''
+        : s.lastWeight != null
+          ? `<div class="set-last-time">Last: ${s.lastWeight}${exUnit} x ${s.lastReps}${s.lastFrom && s.lastFrom !== session.workoutName ? ` (${esc(s.lastFrom)})` : ''}</div>`
+          : prevSet
+            ? `<div class="set-last-time">Last: ${prevSet.actualWeight}${exUnit} x ${prevSet.actualReps}</div>`
+            : '';
+
+      const labels = pegLabels(ex.name);
+      let pegHtml = '';
+      if (labels && Array.isArray(s.pegs)) {
+        const sum = pegSum(s.pegs);
+        const hint = sum === null ? 'enter each peg'
+          : sum === s.actualWeight ? `= ${sum}${exUnit}`
+          : `= ${sum}${exUnit}, set is ${s.actualWeight}${exUnit}`;
+        // Inline styles so the layout never depends on a cached stylesheet
+        pegHtml = `<div class="peg-row" style="width:100%;display:flex;align-items:flex-end;gap:8px;margin-top:6px;flex-wrap:wrap;">
+            ${labels.map((l, pi) => `<label style="display:flex;flex-direction:column;gap:2px;margin:0;font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;">${l}<input type="number" step="0.5" inputmode="decimal"
+              style="width:58px;flex:0 0 auto;min-height:36px;padding:6px 2px;text-align:center;font-size:15px;font-weight:600;"
+              id="setP${ei}_${si}_${pi}" value="${s.pegs[pi] === null || s.pegs[pi] === undefined ? '' : s.pegs[pi]}"
+              onchange="App.today.updatePeg(${ei},${si},${pi},this.value)"></label>`).join('')}
+            <span id="pegHint${ei}_${si}" style="font-size:12px;padding-bottom:9px;color:${sum !== null && sum !== s.actualWeight ? 'var(--yellow)' : 'var(--text-dim)'};">${hint}</span>
+          </div>`;
+      }
 
       html += `
         <div class="${rowClass}" id="setRow${ei}_${si}">
@@ -1593,6 +1675,7 @@ App.today.renderActiveSession = function(container) {
               : `<button class="set-btn set-btn-skip ${s.status === 'skipped' ? 'active' : ''}"
               onclick="App.today.markSet(${ei},${si},'skipped')">S</button>`}
           </div>
+          ${pegHtml}
         </div>`;
     });
 
@@ -1699,10 +1782,46 @@ App.today.addSet = function(ei) {
     actualReps: last.actualReps || last.targetReps,
     actualWeight: last.actualWeight != null ? last.actualWeight : last.targetWeight,
     status: null,
-    extra: true
+    extra: true,
+    ...(Array.isArray(last.pegs) ? { pegs: last.pegs.slice() } : {})
   });
   App.today.saveActive();
   App.today.renderActiveSession(document.getElementById('todayContent'));
+};
+
+// Peg weights for multi-peg machines: once every peg is filled in, the set's
+// weight becomes their total.
+App.today.updatePeg = function(ei, si, pi, value) {
+  if (!App.activeSession) return;
+  const s = App.activeSession.exercises[ei].sets[si];
+  if (!Array.isArray(s.pegs)) return;
+  const v = parseFloat(value);
+  s.pegs[pi] = isNaN(v) ? null : v;
+  const sum = pegSum(s.pegs);
+  if (sum !== null) s.actualWeight = sum;
+  App.today.saveActive();
+  // Update in place (a full re-render would steal focus from the next peg box)
+  const wInput = document.getElementById(`setW${ei}_${si}`);
+  if (wInput && sum !== null) wInput.value = sum;
+  const hint = document.getElementById(`pegHint${ei}_${si}`);
+  if (hint) {
+    hint.textContent = sum === null ? 'enter each peg' : `= ${sum}kg`;
+    hint.style.color = 'var(--text-dim)';
+  }
+  // Save typing: copy a completed split to later sets at the same weight that
+  // have no split yet
+  if (sum !== null) {
+    const sets = App.activeSession.exercises[ei].sets;
+    for (let k = si + 1; k < sets.length; k++) {
+      const t = sets[k];
+      if (!Array.isArray(t.pegs) || t.status !== null || t.actualWeight !== sum || t.pegs.some(v => v !== null)) continue;
+      t.pegs = s.pegs.slice();
+      t.pegs.forEach((v, pk) => { const el = document.getElementById(`setP${ei}_${k}_${pk}`); if (el) el.value = v; });
+      const h = document.getElementById(`pegHint${ei}_${k}`);
+      if (h) { h.textContent = `= ${sum}kg`; h.style.color = 'var(--text-dim)'; }
+    }
+    App.today.saveActive();
+  }
 };
 
 App.today.removeSet = function(ei, si) {
@@ -1963,7 +2082,8 @@ App.today.finishWorkout = function() {
         actualReps: s.actualReps,
         actualWeight: s.actualWeight,
         status: s.status,
-        ...(s.extra ? { extra: true } : {})
+        ...(s.extra ? { extra: true } : {}),
+        ...(Array.isArray(s.pegs) && pegSum(s.pegs) !== null ? { pegs: s.pegs } : {})
       }))
     }))
   };
@@ -2302,6 +2422,29 @@ App.today.applyAutoProgression = function(completedSession) {
       adjustTemplateWeights(0);
     }
 
+    // Keep the peg split with the programme, and drop any stale split note
+    if (pegLabels(ex.name)) {
+      templateEx.sets.forEach((t, i) => {
+        const done = ex.sets[i] && ex.sets[i].status === 'done' ? ex.sets[i] : null;
+        if (done && Array.isArray(done.pegs)) t.pegs = done.pegs.slice();
+        if (isPegNote(t.note)) t.note = '';
+      });
+    }
+
+    // Share the new weights with the same exercise on other days, wherever a
+    // set has the same rep range (held exercises keep their own fixed weight)
+    programme.forEach(w => {
+      if (w === workout) return;
+      const other = w.exercises.find(e => e.name === ex.name);
+      if (!other || other.hold) return;
+      other.sets.forEach((t, j) => {
+        const i = App.today.linkedSetIndex(templateEx, t.repRange, j);
+        if (i < 0) return;
+        t.targetWeight = templateEx.sets[i].targetWeight;
+        if (Array.isArray(templateEx.sets[i].pegs)) t.pegs = templateEx.sets[i].pegs.slice();
+      });
+    });
+
     // Add plateau warning
     if (plateauCount >= 3 && changes.length > 0) {
       const last = changes[changes.length - 1];
@@ -2389,7 +2532,7 @@ App.history.render = function() {
         if (set.status === 'failed') cls += ' failed';
         if (set.status === 'skipped') cls += ' skipped';
         const statusIcon = set.status === 'done' ? '' : set.status === 'failed' ? ' (Failed)' : ' (Skipped)';
-        html += `<div class="${cls}">Set ${si+1}${set.extra ? ' (extra)' : ''}: ${set.actualWeight}${unit} x ${set.actualReps}${statusIcon}</div>`;
+        html += `<div class="${cls}">Set ${si+1}${set.extra ? ' (extra)' : ''}: ${set.actualWeight}${unit} x ${set.actualReps}${Array.isArray(set.pegs) ? ` (${set.pegs.join(' / ')})` : ''}${statusIcon}</div>`;
       });
       if (ex.rpe) html += `<div class="history-rpe">RPE: ${ex.rpe}</div>`;
       html += '</div>';
