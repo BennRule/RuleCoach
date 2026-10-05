@@ -987,7 +987,12 @@ App.today.startWorkout = function(name) {
             Math.abs(s.targetWeight - prevSet.actualWeight) <= inc * 2 + 0.01;
           // A held exercise always starts at the programme's fixed weight
           const useTemplate = s.targetWeight > 0 && (!prevSet || templateMoved || layoff || ex.hold);
-          const startReps = useTemplate || !prevSet ? s.targetReps : prevSet.actualReps;
+          // Rep target: never below the programmed reps, and ratchet up from last
+          // time only as far as the top of the rep range
+          const rangeTop = parseInt(String(s.repRange || '').split('-').pop()) || s.targetReps;
+          const startReps = useTemplate || !prevSet
+            ? s.targetReps
+            : Math.max(s.targetReps, Math.min(prevSet.actualReps, Math.max(rangeTop, s.targetReps)));
           const startWeight = useTemplate || !prevSet ? s.targetWeight : prevSet.actualWeight;
           return {
             targetReps: startReps,
@@ -1891,9 +1896,17 @@ App.today.finishWorkout = function() {
   // Duration runs from start to the last set you marked, not to when you tapped
   // Finish — so a session left open overnight doesn't log as 1,400 minutes.
   // Capped at 4h for sessions with no set timestamps.
-  let lastDone = 0;
-  App.activeSession.exercises.forEach(ex => ex.sets.forEach(s => { if (s.doneAt && s.doneAt > lastDone) lastDone = s.doneAt; }));
-  const endTime = lastDone && lastDone > App.workoutStartTime ? lastDone + 60000 : Date.now();
+  // Ticks made long after the rest (e.g. ticking the cardio or skipping leftovers
+  // the next morning) are ignored: stop at the first gap of more than 45 minutes.
+  const ticks = [];
+  App.activeSession.exercises.forEach(ex => ex.sets.forEach(s => { if (s.doneAt && s.doneAt > App.workoutStartTime) ticks.push(s.doneAt); }));
+  ticks.sort((a, b) => a - b);
+  let lastDone = 0, prevTick = 0;
+  for (const t of ticks) {
+    if (prevTick && t - prevTick > 45 * 60000) break;
+    lastDone = t; prevTick = t;
+  }
+  const endTime = lastDone ? lastDone + 60000 : (ticks.length ? App.workoutStartTime + 60000 : Date.now());
   const elapsed = Math.min(240, Math.max(1, Math.round((endTime - App.workoutStartTime) / 60000)));
   App.activeSession.durationMinutes = elapsed;
 
@@ -2036,12 +2049,17 @@ App.today.logToAppleHealth = function(mins) {
 App.today.getIncrement = function(exerciseName, sessions) {
   const all = sessions || Store.get(sessionsKey()) || [];
   const weights = new Set();
-  let seen = 0;
-  for (let i = all.length - 1; i >= 0 && seen < 12; i--) {
+  let seen = 0, latest = 0;
+  for (let i = all.length - 1; i >= 0 && seen < 30; i--) {
     const ex = all[i].exercises.find(e => e.name === exerciseName);
     if (!ex) continue;
     seen++;
-    ex.sets.forEach(s => { if (s.status === 'done' && s.actualWeight > 0) weights.add(s.actualWeight); });
+    ex.sets.forEach(s => {
+      if (s.status === 'done' && s.actualWeight > 0) {
+        weights.add(s.actualWeight);
+        if (!latest) latest = s.actualWeight;
+      }
+    });
   }
   const sorted = [...weights].sort((a, b) => a - b);
   let step = Infinity;
@@ -2049,10 +2067,16 @@ App.today.getIncrement = function(exerciseName, sessions) {
     const d = Math.round((sorted[i] - sorted[i - 1]) * 100) / 100;
     if (d > 0 && d < step) step = d;
   }
-  if (step >= 1.25 && step <= 10) return step;
+  if (step >= 1.25 && step <= 10) {
+    // A gap between two weights you happened to use is not necessarily the
+    // machine's step. Never let one step exceed 20% of the working weight:
+    // halve it until it fits (10 -> 5 -> 2.5), floor 1.25.
+    while (latest > 0 && step > latest * 0.2 && step / 2 >= 1.25) step = step / 2;
+    return step;
+  }
 
   const name = exerciseName.toLowerCase();
-  if (name.includes('dumbbell')) return 2.5;
+  if (name.includes('dumbbell') || name.includes('ez bar')) return 2.5;
   const compoundKeywords = ['bench', 'squat', 'deadlift', 'leg press', 'row', 'overhead press', 'military press', 'hip thrust', 'rack pull', 'barbell'];
   if (compoundKeywords.some(kw => name.includes(kw))) return 2.5;
   return 1.25;
@@ -2150,18 +2174,34 @@ App.today.applyAutoProgression = function(completedSession) {
     // Scaled miss threshold: 30% of target reps (e.g. 2 reps on 6-rep set, 4 reps on 12-rep set)
     const missThreshold = Math.max(2, Math.round(avgTargetReps * 0.3));
 
-    // Ramp-back after a layoff: best top-set weight for this exercise in the
-    // last 120 days (excluding this session). If today's weight is well below
-    // it and all reps were hit, climb back in double steps, without overshooting.
+    // Ramp-back after a layoff. Only applies for 28 days after returning from a
+    // break of 3+ weeks on this exercise; the target is the best weight from the
+    // 60 days before that break. Outside that window, normal single steps apply.
     let recentBest = 0;
-    const cutoff = Date.now() - 120 * 86400000;
-    for (let i = allSessions.length - 2; i >= 0; i--) {
-      if (new Date(allSessions[i].date).getTime() < cutoff) break;
-      const pe = allSessions[i].exercises.find(e => e.name === ex.name);
-      if (!pe) continue;
-      pe.sets.forEach(s => { if (s.status === 'done' && s.actualWeight > recentBest) recentBest = s.actualWeight; });
+    {
+      const DAY = 86400000;
+      const dates = [];
+      for (let i = allSessions.length - 1; i >= 0; i--) {
+        const t = new Date(allSessions[i].date).getTime();
+        if (Date.now() - t > 150 * DAY) break;
+        const pe = allSessions[i].exercises.find(e => e.name === ex.name);
+        if (pe && pe.sets.some(s => s.status === 'done' && s.actualWeight > 0)) dates.push({ t, pe });
+      }
+      // dates is newest-first; find the most recent gap of 21+ days
+      for (let i = 0; i < dates.length - 1; i++) {
+        if (dates[i].t - dates[i + 1].t >= 21 * DAY) {
+          const returned = dates[i].t;
+          if (Date.now() - returned <= 28 * DAY) {
+            for (let j = i + 1; j < dates.length && dates[i + 1].t - dates[j].t <= 60 * DAY; j++) {
+              dates[j].pe.sets.forEach(s => { if (s.status === 'done' && s.actualWeight > recentBest) recentBest = s.actualWeight; });
+            }
+          }
+          break;
+        }
+      }
     }
-    const rampingBack = recentBest > 0 && mainWeight + increment < recentBest;
+    // noRamp: exercises being phased back in after injury climb one step at a time
+    const rampingBack = !templateEx.noRamp && recentBest > 0 && mainWeight + increment < recentBest;
 
     // Helper: adjust each template set by a delta, anchored to what was actually
     // lifted this session. delta 0 = hold at actual weights; positive/negative
@@ -2182,7 +2222,9 @@ App.today.applyAutoProgression = function(completedSession) {
       changes.push({ exercise: ex.name, action: 'decrease', from: mainWeight, to: newWeight, reason: `Reps well below target (avg ${Math.round(avgRepDiff)} short)` });
     } else if (hitAllReps && rpeOk && rampingBack) {
       // RAMP BACK: below recent best after a layoff — double step, capped at the best
-      const delta = Math.min(increment * 2, Math.round((recentBest - mainWeight) * 4) / 4);
+      // Double step, but never more than 20% of the weight in one go
+      const double = increment * 2 <= mainWeight * 0.2 ? increment * 2 : increment;
+      const delta = Math.min(double, Math.round((recentBest - mainWeight) * 4) / 4);
       const newWeight = mainWeight + delta;
       adjustTemplateWeights(delta);
       changes.push({ exercise: ex.name, action: 'increase', from: mainWeight, to: newWeight, reason: `Ramping back towards ${recentBest}${unit}` });
