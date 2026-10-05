@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '5 Oct 2026, build 44';
+const APP_BUILD = '5 Oct 2026, build 45';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -131,11 +131,12 @@ const Sync = {
           const remoteDoc = await db.collection(Sync.COLLECTION).doc(key).get();
           if (remoteDoc.exists && Array.isArray(remoteDoc.data().data)) {
             const remoteArr = remoteDoc.data().data;
-            const localIds = new Set(val.map((s, i) => s && s.id ? s.id : 'idx-' + i));
-            const onlyInRemote = remoteArr.filter((s, i) => {
-              const id = s && s.id ? s.id : 'remote-idx-' + i;
-              return !localIds.has(id);
-            });
+            // Entries without an id (bodyweight) are matched on date + weight, so
+            // the same entry is never merged back in as a duplicate
+            const keyOf = (s, i, prefix) => s && s.id ? s.id
+              : s && s.date ? 'd:' + s.date + ':' + s.weight : prefix + i;
+            const localIds = new Set(val.map((s, i) => keyOf(s, i, 'idx-')));
+            const onlyInRemote = remoteArr.filter((s, i) => !localIds.has(keyOf(s, i, 'remote-idx-')));
             if (onlyInRemote.length > 0) {
               // Merge: union of local + remote-only items
               val = [...val, ...onlyInRemote];
@@ -3095,7 +3096,13 @@ App.bodyweight.log = function() {
 };
 
 App.bodyweight.render = function() {
-  const all = Store.get('rulecoach_bodyweight') || [];
+  // Drop exact duplicates left by an old sync bug
+  const seen = new Set();
+  const all = (Store.get('rulecoach_bodyweight') || []).filter(e => {
+    const k = e.date + ':' + e.weight;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
   const entries = all.slice(-10).reverse();
   const el = document.getElementById('bwHistory');
   if (!el) return;
