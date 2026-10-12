@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '5 Oct 2026, build 46';
+const APP_BUILD = '5 Oct 2026, build 47';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -2511,8 +2511,7 @@ App.history.render = function() {
     html += `
     <div class="history-swipe-wrap" id="histWrap${idx}">
       <div class="history-swipe-delete" onclick="event.stopPropagation();App.history.deleteSession(${idx})">Delete</div>
-      <div class="history-item" id="histItem${idx}" onclick="App.history.toggle(${idx})"
-        ontouchstart="App.history._touchStart(event,${idx})" ontouchmove="App.history._touchMove(event,${idx})" ontouchend="App.history._touchEnd(event,${idx})">
+      <div class="history-item" id="histItem${idx}" data-idx="${idx}" onclick="App.history.toggle(${idx})">
         <div class="history-date">${formatDate(s.date)}</div>
         <div class="history-name">${esc(s.workoutName)}</div>
         <div class="history-meta">
@@ -2544,54 +2543,61 @@ App.history.render = function() {
   });
 
   container.innerHTML = App.history.renderWeeklySummary(sessions) + html;
+  App.history._bindSwipe(container);
 };
 
-// Swipe-to-delete touch handling
-App.history._swipeState = {};
-
-App.history._touchStart = function(e, idx) {
-  const touch = e.touches[0];
-  App.history._swipeState = { startX: touch.clientX, startY: touch.clientY, idx: idx, swiping: false };
-};
-
-App.history._touchMove = function(e, idx) {
-  const st = App.history._swipeState;
-  if (st.idx !== idx) return;
-  const touch = e.touches[0];
-  const dx = touch.clientX - st.startX;
-  const dy = touch.clientY - st.startY;
-
-  // Only swipe if horizontal movement > vertical (prevents blocking scroll)
-  if (!st.swiping && Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
-    st.swiping = true;
+// Swipe-to-delete: 1:1 tracking with pointer capture, rubber-banding past
+// both ends, and the release velocity projected forward to pick the resting
+// position (open at -80px or closed), then a spring from the current value.
+App.history._springs = new WeakMap();
+App.history._springFor = function(el) {
+  let sp = App.history._springs.get(el);
+  if (!sp) {
+    sp = new Spring(x => { el.style.transform = x ? `translate3d(${x}px,0,0)` : ''; el.dataset.x = x; });
+    App.history._springs.set(el, sp);
   }
-  if (!st.swiping) return;
-  e.preventDefault();
-
-  const el = document.getElementById('histItem' + idx);
-  if (!el) return;
-  const offset = Math.min(0, Math.max(-80, dx));
-  el.style.transition = 'none';
-  el.style.transform = 'translateX(' + offset + 'px)';
+  return sp;
 };
 
-App.history._touchEnd = function(e, idx) {
-  const st = App.history._swipeState;
-  if (st.idx !== idx) return;
-  const el = document.getElementById('histItem' + idx);
-  if (!el) return;
+App.history._bindSwipe = function(container) {
+  if (container._swipeBound) return;
+  container._swipeBound = true;
+  const OPEN = -80;
+  let el = null, sp = null, x0 = 0, startX = 0, startY = 0, mode = null, samples = [];
 
-  el.style.transition = 'transform .25s ease';
-  const currentX = parseFloat(el.style.transform.replace(/[^-\d.]/g, '')) || 0;
-
-  if (currentX < -40) {
-    el.classList.add('swiped');
-    el.style.transform = '';
-  } else {
-    el.classList.remove('swiped');
-    el.style.transform = '';
-  }
-  App.history._swipeState = {};
+  container.addEventListener('pointerdown', e => {
+    el = e.target.closest('.history-item');
+    if (!el || e.target.closest('button')) { el = null; return; }
+    sp = App.history._springFor(el); sp.stop();
+    x0 = sp.value; startX = e.clientX; startY = e.clientY; mode = null; samples = [{ t: performance.now(), v: x0 }];
+  });
+  container.addEventListener('pointermove', e => {
+    if (!el) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!mode) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;     // hysteresis
+      mode = Math.abs(dx) > Math.abs(dy) ? 'swipe' : 'scroll';
+      if (mode === 'swipe') { try { el.setPointerCapture(e.pointerId); } catch (_) {} el.dataset.swiping = '1'; }
+    }
+    if (mode !== 'swipe') return;
+    let x = x0 + dx;
+    if (x > 0) x = Motion.rubberband(x, 80);
+    else if (x < OPEN) x = OPEN - Motion.rubberband(OPEN - x, 80);
+    sp.value = x; sp.onUpdate(x);
+    samples.push({ t: performance.now(), v: x });
+  });
+  const release = e => {
+    if (!el) return;
+    const item = el, spring = sp; el = null; sp = null;
+    if (mode !== 'swipe') return;
+    const v = Motion.velocity(samples);
+    const projected = spring.value + Motion.project(v);
+    const target = projected < OPEN / 2 ? OPEN : 0;
+    spring.animateTo(target, { velocity: v, response: 0.35, damping: Math.abs(v) > 150 ? 0.8 : 1 });
+    setTimeout(() => { delete item.dataset.swiping; }, 0);   // swallow the click this drag produced
+  };
+  container.addEventListener('pointerup', release);
+  container.addEventListener('pointercancel', release);
 };
 
 App.history.deleteSession = function(idx) {
@@ -2635,7 +2641,11 @@ App.history.renderWeeklySummary = function(sessions) {
 };
 
 App.history.toggle = function(idx) {
-  document.getElementById('histItem' + idx).classList.toggle('expanded');
+  const el = document.getElementById('histItem' + idx);
+  if (!el || el.dataset.swiping) return;
+  // A tap on an item that is swiped open closes it rather than expanding it
+  if (parseFloat(el.dataset.x || 0) < -1) { App.history._springFor(el).animateTo(0, { response: 0.35, damping: 1 }); return; }
+  el.classList.toggle('expanded');
 };
 
 // ---- CHART ----
@@ -3246,24 +3256,165 @@ App.data.clearData = function() {
 };
 
 // ---- MODAL ----
-App.modal = {};
-
-App.modal.open = function(html) {
-  document.getElementById('modalSheet').innerHTML = html;
-  document.getElementById('modalOverlay').classList.add('show');
-};
-
-App.modal.close = function(e) {
-  if (e && e.target === document.getElementById('modalOverlay')) {
-    App.modal.forceClose();
+// ---- Motion: Apple-style springs (damping ratio + response), velocity
+// tracking, momentum projection and rubber-banding ----
+const Motion = {
+  reduced() { return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; },
+  // Where a flick would come to rest on its own (UIScrollView deceleration)
+  project(velocity, rate = 0.998) { return (velocity / 1000) * rate / (1 - rate); },
+  // Progressive resistance past a boundary
+  rubberband(overshoot, dimension, c = 0.55) {
+    return (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+  },
+  // Velocity (px/s) from the last ~100ms of pointer samples
+  velocity(samples) {
+    const now = performance.now();
+    const recent = samples.filter(p => now - p.t <= 100);
+    if (recent.length < 2) return 0;
+    const a = recent[0], b = recent[recent.length - 1];
+    const dt = (b.t - a.t) / 1000;
+    return dt > 0 ? (b.v - a.v) / dt : 0;
   }
 };
 
-App.modal.forceClose = function() {
+// Interruptible spring: re-targeting mid-flight keeps the current value and
+// velocity, so a sheet grabbed while closing simply follows the finger.
+function Spring(onUpdate, onRest) {
+  this.value = 0; this.velocity = 0; this.target = 0;
+  this.response = 0.4; this.damping = 1;
+  this.onUpdate = onUpdate; this.onRest = onRest;
+  this._raf = null; this._timer = null; this._last = 0; this.running = false;
+}
+Spring.prototype.set = function(v) {
+  this.stop(); this.value = v; this.target = v; this.velocity = 0; this.onUpdate(v);
+};
+Spring.prototype.stop = function() {
+  if (this._raf) cancelAnimationFrame(this._raf);
+  if (this._timer) clearTimeout(this._timer);
+  this._raf = null; this._timer = null; this.running = false;
+};
+// rAF for display-synced frames, with a timer fallback so the motion keeps
+// going (at ~30fps) when the browser throttles rAF, e.g. a dimmed screen
+Spring.prototype._schedule = function(step) {
+  this._raf = requestAnimationFrame(t => { this._raf = null; step(t); });
+  this._timer = setTimeout(() => { this._timer = null; if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; step(performance.now()); } }, 34);
+};
+Spring.prototype.animateTo = function(target, opts = {}) {
+  this.target = target;
+  if (opts.velocity != null) this.velocity = opts.velocity;
+  if (opts.response) this.response = opts.response;
+  if (opts.damping != null) this.damping = opts.damping;
+  if (Motion.reduced()) { this.stop(); this.value = target; this.velocity = 0; this.onUpdate(target); this.onRest && this.onRest(); return; }
+  if (this.running) return; // already running: just re-targeted, velocity carries through
+  this.running = true;
+  this._last = performance.now();
+  const step = (now) => {
+    if (this._timer) { clearTimeout(this._timer); this._timer = null; }
+    const dt = Math.min(0.064, Math.max(0.001, (now - this._last) / 1000)); this._last = now;
+    const w = 2 * Math.PI / this.response, k = w * w, c = 2 * this.damping * w;
+    const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const a = -k * (this.value - this.target) - c * this.velocity;
+      this.velocity += a * h; this.value += this.velocity * h;
+    }
+    const done = Math.abs(this.value - this.target) < 0.3 && Math.abs(this.velocity) < 8;
+    if (done) { this.value = this.target; this.velocity = 0; }
+    this.onUpdate(this.value);
+    if (done) { this.running = false; this.onRest && this.onRest(); }
+    else this._schedule(step);
+  };
+  this._schedule(step);
+};
+
+// ---- MODAL: bottom sheet that springs up from the bottom edge, tracks the
+// finger 1:1 on the grabber, rubber-bands when pulled up, and uses the
+// release velocity to decide whether it dismisses or returns ----
+App.modal = { _open: false, _spring: null, _height: 0 };
+
+App.modal._els = function() {
+  return {
+    overlay: document.getElementById('modalOverlay'),
+    scrim: document.getElementById('modalScrim'),
+    sheet: document.getElementById('modalSheet'),
+    content: document.getElementById('modalContent'),
+    grabber: document.getElementById('modalGrabber')
+  };
+};
+
+App.modal._ensure = function() {
+  if (App.modal._spring) return;
+  const { sheet, scrim, overlay, grabber } = App.modal._els();
+  App.modal._spring = new Spring(y => {
+    sheet.style.transform = `translate3d(0,${y}px,0)`;
+    const h = App.modal._height || 1;
+    scrim.style.opacity = Math.max(0, Math.min(1, 1 - y / h));
+  }, () => {
+    if (!App.modal._open && App.modal._spring.value >= App.modal._height - 1) {
+      overlay.classList.remove('show');
+    }
+  });
+
+  // Drag on the grabber only, so content inside the sheet still scrolls natively
+  let startY = 0, startVal = 0, samples = [];
+  grabber.addEventListener('pointerdown', e => {
+    try { grabber.setPointerCapture(e.pointerId); } catch (_) {}
+    App.modal._spring.stop();              // grab it mid-flight
+    App.modal._open = true;                // held = presented; release decides
+    startY = e.clientY; startVal = App.modal._spring.value; samples = [{ t: performance.now(), v: startVal }];
+    grabber.classList.add('grabbing');
+  });
+  grabber.addEventListener('pointermove', e => {
+    if (!grabber.classList.contains('grabbing')) return;
+    let y = startVal + (e.clientY - startY);
+    if (y < 0) y = -Motion.rubberband(-y, App.modal._height || 400);
+    App.modal._spring.value = y; App.modal._spring.onUpdate(y);
+    samples.push({ t: performance.now(), v: y });
+  });
+  const release = e => {
+    if (!grabber.classList.contains('grabbing')) return;
+    grabber.classList.remove('grabbing');
+    const sp = App.modal._spring, h = App.modal._height || 400;
+    const v = Motion.velocity(samples);
+    const projected = sp.value + Motion.project(v);
+    const dismiss = sp.value > 0 && (projected > h * 0.5 || v > 900);
+    if (dismiss) App.modal.forceClose(v);
+    else sp.animateTo(0, { velocity: v, response: 0.35, damping: Math.abs(v) > 150 ? 0.8 : 1 });
+  };
+  grabber.addEventListener('pointerup', release);
+  grabber.addEventListener('pointercancel', release);
+};
+
+App.modal.open = function(html) {
+  App.modal._ensure();
+  const { overlay, sheet, content } = App.modal._els();
+  const sp = App.modal._spring;
+  const wasShown = App.modal._open;
+  content.innerHTML = html;
+  content.scrollTop = 0;
+  App.modal._open = true;
+  overlay.classList.add('show');
+  const measured = sheet.offsetHeight;
+  App.modal._height = measured > 40 ? measured : Math.max(200, content.scrollHeight + 40);
+  if (!wasShown && !sp.running) sp.set(App.modal._height);   // start off-screen at the bottom
+  sp.animateTo(0, { response: 0.4, damping: 1 });          // no momentum, so no bounce
+};
+
+App.modal.close = function(e) {
+  const { overlay, scrim } = App.modal._els();
+  if (e && (e.target === overlay || e.target === scrim)) App.modal.forceClose();
+};
+
+App.modal.forceClose = function(velocity) {
+  App.modal._ensure();
+  const { overlay, sheet } = App.modal._els();
   // Stop any playing videos (iframes)
-  const overlay = document.getElementById('modalOverlay');
   overlay.querySelectorAll('iframe').forEach(f => { f.src = ''; });
-  overlay.classList.remove('show');
+  if (!App.modal._open && !App.modal._spring.running) { overlay.classList.remove('show'); return; }
+  App.modal._open = false;
+  const measured = sheet.offsetHeight;
+  if (measured > 40) App.modal._height = measured;
+  // Leaves the way it came in: down and out through the bottom edge
+  App.modal._spring.animateTo(App.modal._height, { velocity: velocity || null, response: 0.3, damping: 1 });
 };
 
 // Force the latest version: drop the service worker and its caches, then reload

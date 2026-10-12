@@ -139,7 +139,11 @@
 
   <!-- Modals -->
   <div class="modal-overlay" id="modalOverlay" onclick="App.modal.close(event)">
-    <div class="modal-sheet" id="modalSheet"></div>
+    <div class="modal-scrim" id="modalScrim"></div>
+    <div class="modal-sheet" id="modalSheet">
+      <div class="modal-grabber" id="modalGrabber" aria-label="Drag down to close"><span></span></div>
+      <div class="modal-content" id="modalContent"></div>
+    </div>
   </div>
 
   <!-- Chart modal -->
