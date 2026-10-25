@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '25 Oct 2026, build 48';
+const APP_BUILD = '25 Oct 2026, build 49';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -2867,13 +2867,19 @@ App.programme.render = function() {
   const programme = user === 'bonny' ? getBonnyProgramme() : (Store.get('rulecoach_programme') || []);
   const unit = settings.units || 'kg';
 
+  const nextWorkout = user === 'bonny' ? null : App.today.getTodayWorkout();
+  const nextName = nextWorkout ? nextWorkout.name : null;
   let html = '';
   programme.forEach((w, wi) => {
     html += `
     <div class="programme-day" id="progDay${wi}">
       <div class="programme-day-header" onclick="App.programme.toggle(${wi})">
         <h3>${esc(w.name)} <span style="font-weight:400;color:var(--text-dim);font-size:13px;">— ${esc(w.subtitle)}</span></h3>
-        <span class="day-label">${esc(w.day)}</span>
+        ${(() => {
+          if (nextName === w.name) return `<span class="day-label" style="color:var(--accent-light);font-weight:700;">Next</span>`;
+          const d = App.today.daysSinceWorkout(w.name);
+          return `<span class="day-label">${d === null ? 'Not done yet' : d === 0 ? 'Today' : d === 1 ? 'Yesterday' : d + ' days ago'}</span>`;
+        })()}
       </div>
       <div class="programme-day-body"><div class="collapse-inner">`;
 
