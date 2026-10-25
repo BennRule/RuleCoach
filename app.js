@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '25 Oct 2026, build 49';
+const APP_BUILD = '25 Oct 2026, build 50';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -211,6 +211,28 @@ const Sync = {
       Sync._status = 'error';
       Sync.renderStatus('Sync error: ' + e.message);
     }
+  },
+
+  // Refresh one key from the cloud if the cloud copy is newer than ours.
+  // Used before auto-progression so a coach edit made since the session
+  // started is applied first rather than overwritten. Bounded wait.
+  async pullKey(key, timeoutMs = 4000) {
+    if (!db || !navigator.onLine) return false;
+    try {
+      const doc = await Promise.race([
+        db.collection(Sync.COLLECTION).doc(key).get(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), timeoutMs))
+      ]);
+      if (!doc.exists) return false;
+      const remote = doc.data();
+      const localTime = Sync.getTimestamps()[key] || '1970-01-01';
+      if ((remote.updatedAt || '') > localTime) {
+        localStorage.setItem(key, JSON.stringify(remote.data));
+        Sync.setTimestamp(key, remote.updatedAt);
+        return true;
+      }
+    } catch (e) { console.warn('pullKey failed:', key, e.message); }
+    return false;
   },
 
   async forceSync() {
@@ -2048,7 +2070,14 @@ App.today.checkFinish = function() {
   document.getElementById('finishFab').classList.toggle('show', allDone);
 };
 
-App.today.finishWorkout = function() {
+App.today.finishWorkout = async function() {
+  if (!App.activeSession || App._finishing) return;
+  App._finishing = true;
+  try {
+    // Pick up any programme edit made since this session started, so the
+    // progression below builds on the current plan rather than a stale copy
+    await Sync.pullKey('rulecoach_programme');
+  } finally { App._finishing = false; }
   if (!App.activeSession) return;
 
   // Duration runs from start to the last set you marked, not to when you tapped
@@ -2136,50 +2165,45 @@ App.today.finishWorkout = function() {
   const bw = lastBw ? lastBw.weight : 85;
   const estKcal = Math.round(3.5 * 3.5 * bw / 200 * Math.max(1, elapsed));
 
+  // Summary built to be read at arm's length without glasses: a few big
+  // numbers, one line per weight change, no small print.
+  const ups = progressionChanges.filter(c => c.action === 'increase');
+  const downs = progressionChanges.filter(c => c.action === 'decrease');
+  const holds = progressionChanges.filter(c => c.action === 'hold');
+  const big = (value, label, color) => `
+    <div style="flex:1;min-width:0;text-align:center;">
+      <div style="font-size:34px;font-weight:800;letter-spacing:-0.02em;line-height:1;color:${color || 'var(--text)'};font-variant-numeric:tabular-nums;">${value}</div>
+      <div style="font-size:13px;font-weight:600;color:var(--text-dim);margin-top:6px;text-transform:uppercase;letter-spacing:.04em;">${label}</div>
+    </div>`;
+  const shortName = n => esc(n.replace(/\s*\(.*?\)\s*/g, ' ').replace(/ Machine$/, '').trim());
+  const line = (c, arrow, color) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:22px;color:${color};width:26px;text-align:center;">${arrow}</span>
+      <span style="flex:1;min-width:0;font-size:17px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${shortName(c.exercise)}</span>
+      <span style="font-size:20px;font-weight:800;color:${color};white-space:nowrap;font-variant-numeric:tabular-nums;">${c.to}${unit}</span>
+    </div>`;
   let progressionHtml = '';
-  if (progressionChanges.length > 0) {
-    progressionHtml = '<div class="progression-summary"><h3>Next Session</h3>';
-    progressionChanges.forEach(c => {
-      let icon, cls, detail;
-      if (c.action === 'increase') {
-        icon = '&#9650;'; cls = 'prog-increase';
-        detail = `${c.from}${unit} → ${c.to}${unit}`;
-      } else if (c.action === 'decrease') {
-        icon = '&#9660;'; cls = 'prog-decrease';
-        detail = `${c.from}${unit} → ${c.to}${unit}`;
-      } else {
-        icon = '&#9679;'; cls = 'prog-hold';
-        detail = `${c.from}${unit} — hold`;
-      }
-      progressionHtml += `<div class="prog-item ${cls}">
-        <span class="prog-icon">${icon}</span>
-        <span class="prog-name">${esc(c.exercise)}</span>
-        <span class="prog-detail">${detail}</span>
-      </div>`;
-      if (c.plateau) {
-        progressionHtml += `<div class="prog-item prog-plateau">
-          <span class="prog-icon">&#9888;</span>
-          <span class="prog-name" style="font-size:11px;">Plateau: same weight for ${c.plateauCount} sessions</span>
-        </div>`;
-      }
-    });
-    progressionHtml += '<div class="prog-reason">' + progressionChanges.map(c => c.reason ? `${c.exercise}: ${c.reason}` : '').filter(Boolean).join('<br>') + '</div>';
-    progressionHtml += '</div>';
+  if (ups.length || downs.length) {
+    progressionHtml += `<div style="margin:20px 0 4px;font-size:13px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;">Next time</div>`;
+    ups.forEach(c => progressionHtml += line(c, '&#9650;', 'var(--green)'));
+    downs.forEach(c => progressionHtml += line(c, '&#9660;', 'var(--red)'));
+  }
+  if (holds.length) {
+    progressionHtml += `<div style="margin-top:12px;font-size:15px;color:var(--text-dim);">${holds.length === 1 ? '1 exercise holds' : holds.length + ' exercises hold'} at the same weight.</div>`;
   }
 
   const summaryHtml = `
-    <h2>Workout Complete!</h2>
-    <div style="margin:16px 0;">
-      <div class="workout-complete-stat"><span class="stat-label">Workout</span><span class="stat-value">${esc(session.workoutName)}</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Duration</span><span class="stat-value">${formatDuration(elapsed)}</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Sets Completed</span><span class="stat-value">${doneSets}/${totalSets}</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Skipped Sets</span><span class="stat-value">${skippedSets}</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Total Volume</span><span class="stat-value">${Math.round(totalVolume).toLocaleString()} kg</span></div>
-      <div class="workout-complete-stat"><span class="stat-label">Est. Calories</span><span class="stat-value">~${estKcal} kcal</span></div>
+    <h2 style="font-size:28px;letter-spacing:-0.02em;margin-bottom:4px;">Done.</h2>
+    <div style="font-size:16px;color:var(--text-dim);margin-bottom:22px;">${esc(session.workoutName)}</div>
+    <div style="display:flex;gap:8px;margin-bottom:22px;">
+      ${big(formatDuration(elapsed).replace('min', '<span style="font-size:18px;font-weight:700;">m</span>').replace(/(\d+)h /, '$1<span style="font-size:18px;font-weight:700;">h</span> '), 'Time')}
+      ${big(`${doneSets}<span style="font-size:18px;font-weight:700;color:var(--text-dim);">/${totalSets}</span>`, 'Sets', doneSets === totalSets ? 'var(--green)' : undefined)}
+      ${big(totalVolume >= 10000 ? (totalVolume / 1000).toFixed(1) + '<span style="font-size:18px;font-weight:700;">t</span>' : Math.round(totalVolume).toLocaleString(), 'Volume')}
     </div>
     ${progressionHtml}
-    <button class="btn btn-outline btn-block" onclick="App.today.logToAppleHealth(${Math.max(1, elapsed)})" style="margin-bottom:8px;">Log to Apple Health</button>
-    <button class="btn btn-primary btn-block" onclick="App.modal.forceClose()">Done</button>`;
+    <div style="font-size:14px;color:var(--text-dim);margin:18px 0 20px;">About ${estKcal} kcal${skippedSets ? ` · ${skippedSets} set${skippedSets === 1 ? '' : 's'} skipped` : ''}</div>
+    <button class="btn btn-primary btn-block" style="min-height:60px;font-size:20px;" onclick="App.modal.forceClose()">Done</button>
+    <button class="btn btn-outline btn-block" style="margin-top:10px;" onclick="App.today.logToAppleHealth(${Math.max(1, elapsed)})">Log to Apple Health</button>`;
 
   App.modal.open(summaryHtml);
 
