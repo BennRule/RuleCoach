@@ -1,0 +1,11 @@
+# CLAUDE.md
+
+Rule Coach, Benn's training tracker PWA. The folder kept its old name. Vanilla JS: app.js (the app), sw.js, editor.html and editor.js (desktop programme editor). Deploy is a push to main (GitHub Pages, repo BennRule/RuleCoach, live at https://bennrule.github.io/RuleCoach/).
+
+- The data is live. Firestore project rulecoach-c2fba, no auth, REST API. Collection `rulecoach`, docs rulecoach_programme, rulecoach_sessions_benn, rulecoach_active_session, rulecoach_bodyweight, rulecoach_watch and rulecoach_watch_state. Any preview tab reads and writes Benn's real data.
+- Before touching anything in a preview: set `db = null` (or, when the watch listener is needed, keep db live and no-op `Sync.pushKey` and `Sync.debouncePush`), then `fetch('app.js', {cache:'reload'})`, unregister the service worker, clear caches, reload, and assert the new code is present before running tests. Old code clobbered the live programme three times.
+- Bump `CACHE_NAME` in sw.js on every deploy. The build label shows at the bottom of Settings.
+- Preview pane quirks: requestAnimationFrame is suspended (the Spring helper has a 34 ms timer fallback), javascript_tool timers run slower than wall time, and style.css is cached, so prefer inline styles for new UI.
+- Programme edits go straight to the Firestore programme doc with a fresh updatedAt; the phone pulls on next open. Template flags: `hold` / `holdReason` (exempt from auto-progression, always start at the template weight) and `noRamp` (single-step progression). Learned steps are capped at 20% of the working weight; ramp-back is limited to 28 days after a 3+ week break. Extra sets (+ Set) are ignored by progression. An active session in Firestore does not mean Benn is training.
+- Coaching context (shoulder phase-in, deload timing, exercise preferences, health notes) is in Claude's memory, not here. Ask before changing exercises.
+- UI follows the apple-design skill (passes on 12/10/2026 and 25/10/2026): Motion and Spring helpers in app.js, bottom-sheet modal with `App.modal.confirm` / `App.modal.alert` (no native confirm/alert), pointer-event swipes, animated expand via grid rows with a `.collapse-inner` wrapper, reduced-motion media queries at the end of style.css. The preview pane freezes compositor transitions (transform/opacity), so test those with `transition: none` or trust the rule.
