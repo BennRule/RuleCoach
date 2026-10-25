@@ -48,6 +48,15 @@ html, body {
   display: none;
 }
 .screen.active { display: block; }
+.screen.entering { animation: screen-in 180ms ease-out; }
+@keyframes screen-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* Collapsible blocks: height animates via grid rows; the inner wrapper clips */
+.collapse-inner { min-height: 0; overflow: hidden; }
+.exercise-body, .history-detail, .programme-day-body {
+  display: grid; grid-template-rows: 1fr;
+  transition: grid-template-rows 240ms ease-out, opacity 180ms ease-out, padding 240ms ease-out, margin 240ms ease-out, border-color 240ms ease-out;
+}
 
 .screen-title {
   font-size: 28px; font-weight: 800;
@@ -364,18 +373,18 @@ label {
   display: none;
 }
 .exercise-card.completed .exercise-summary { display: block; }
-.exercise-card.completed .exercise-body { display: none; }
+.exercise-card.completed .exercise-body { grid-template-rows: 0fr; opacity: 0; padding-bottom: 0; }
 
 /* Finish workout FAB */
 .finish-workout-fab {
-  display: none;
   position: fixed;
   bottom: calc(80px + env(safe-area-inset-bottom));
-  left: 50%; transform: translateX(-50%);
+  left: 50%; transform: translate(-50%, 16px) scale(0.94);
+  opacity: 0; pointer-events: none;
   z-index: 100;
-  transition: bottom 0.2s;
+  transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms ease-out;
 }
-.finish-workout-fab.show { display: block; }
+.finish-workout-fab.show { transform: translate(-50%, 0) scale(1); opacity: 1; pointer-events: auto; }
 
 /* No workout today */
 .rest-day-msg {
@@ -433,12 +442,12 @@ label {
 }
 
 .history-detail {
-  display: none;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--border);
-  margin-top: 12px;
+  grid-template-rows: 0fr; opacity: 0;
+  padding: 0;
+  border-top: 1px solid transparent;
+  margin-top: 0;
 }
-.history-item.expanded .history-detail { display: block; }
+.history-item.expanded .history-detail { grid-template-rows: 1fr; opacity: 1; padding: 12px 0 0; border-top-color: var(--border); margin-top: 12px; }
 
 .history-exercise-block { margin-bottom: 12px; }
 .history-exercise-name { font-weight: 600; margin-bottom: 4px; }
@@ -492,9 +501,9 @@ label {
   font-size: 12px; color: var(--text-dim);
 }
 .programme-day-body {
-  display: none; padding: 0 16px 16px;
+  grid-template-rows: 0fr; opacity: 0; padding: 0 16px 0;
 }
-.programme-day.expanded .programme-day-body { display: block; }
+.programme-day.expanded .programme-day-body { grid-template-rows: 1fr; opacity: 1; padding: 0 16px 16px; }
 
 .programme-exercise {
   padding: 8px 0;
@@ -674,6 +683,9 @@ label {
 /* Accessibility: gentler equivalents, never nothing */
 @media (prefers-reduced-motion: reduce) {
   .chart-modal { transition: opacity 200ms ease; transform: none; }
+  .screen.entering { animation: none; }
+  .exercise-body, .history-detail, .programme-day-body { transition: opacity 150ms ease; }
+  .finish-workout-fab { transition: opacity 150ms ease; transform: translate(-50%, 0); }
   .global-rest-bar.ringing { animation: none; }
   .global-rest-progress { transition: none !important; }
   .btn:active, .set-btn:active, .nav-btn:active svg, .global-rest-bar:active .global-rest-content { transform: none; }

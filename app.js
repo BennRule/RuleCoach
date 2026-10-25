@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '5 Oct 2026, build 47';
+const APP_BUILD = '25 Oct 2026, build 48';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -842,7 +842,9 @@ App.init = function() {
 App.nav = function(screen) {
   App.currentScreen = screen;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + screen).classList.add('active');
+  const next = document.getElementById('screen-' + screen);
+  next.classList.add('active');
+  next.classList.remove('entering'); void next.offsetWidth; next.classList.add('entering');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.screen === screen));
 
   if (screen === 'history') App.history.render();
@@ -1555,7 +1557,7 @@ App.today.renderActiveSession = function(container) {
         </span>
       </div>
       <div class="exercise-summary">${summaryParts.join(' | ')}</div>
-      <div class="exercise-body">`;
+      <div class="exercise-body"><div class="collapse-inner">`;
 
     const isCardioExercise = ex.sets.every(s => s.targetWeight === 0 && (
       s.repRange.includes('min') || s.repRange.includes('m') ||
@@ -1692,7 +1694,7 @@ App.today.renderActiveSession = function(container) {
           </div>
           ${isCardioExercise ? '' : `<button class="btn btn-outline btn-sm" style="margin-left:auto;" onclick="App.today.addSet(${ei})">+ Set</button>`}
         </div>
-      </div>
+      </div></div>
     </div>`;
   });
 
@@ -2520,7 +2522,7 @@ App.history.render = function() {
           <span>${Math.round(totalVol).toLocaleString()} ${unit}</span>
         </div>
         ${s.notes ? `<div style="font-size:13px;color:var(--text-dim);font-style:italic;margin-top:4px;padding:0 4px;">"${esc(s.notes)}"</div>` : ''}
-        <div class="history-detail">`;
+        <div class="history-detail"><div class="collapse-inner">`;
 
     s.exercises.forEach(ex => {
       html += `<div class="history-exercise-block">
@@ -2539,7 +2541,7 @@ App.history.render = function() {
       html += '</div>';
     });
 
-    html += '</div></div></div>';
+    html += '</div></div></div></div>';
   });
 
   container.innerHTML = App.history.renderWeeklySummary(sessions) + html;
@@ -2600,13 +2602,14 @@ App.history._bindSwipe = function(container) {
   container.addEventListener('pointercancel', release);
 };
 
-App.history.deleteSession = function(idx) {
+App.history.deleteSession = async function(idx) {
   // idx is the reversed index (0 = most recent)
   const sessions = Store.get(sessionsKey()) || [];
   const actualIdx = sessions.length - 1 - idx;
   const session = sessions[actualIdx];
   if (!session) return;
-  if (!confirm('Delete "' + session.workoutName + '" from ' + formatDate(session.date) + '?')) return;
+  const ok = await App.modal.confirm({ title: 'Delete this session?', body: session.workoutName + ', ' + formatDate(session.date) + '. This cannot be undone.', confirmLabel: 'Delete', danger: true });
+  if (!ok) return;
   sessions.splice(actualIdx, 1);
   Store.set(sessionsKey(), sessions);
   App.history.render();
@@ -2872,7 +2875,7 @@ App.programme.render = function() {
         <h3>${esc(w.name)} <span style="font-weight:400;color:var(--text-dim);font-size:13px;">— ${esc(w.subtitle)}</span></h3>
         <span class="day-label">${esc(w.day)}</span>
       </div>
-      <div class="programme-day-body">`;
+      <div class="programme-day-body"><div class="collapse-inner">`;
 
     w.exercises.forEach((ex, exi) => {
       const setsDesc = ex.sets.map((s, si) => {
@@ -2893,7 +2896,7 @@ App.programme.render = function() {
       html += `<button class="btn btn-outline btn-sm programme-edit-btn" onclick="App.programme.edit(${wi})">Edit</button>`;
     }
     html += `
-      </div>
+      </div></div>
     </div>`;
   });
 
@@ -2970,11 +2973,11 @@ App.programme.saveEdit = function(wi) {
   App.programme.render();
 };
 
-App.programme.reset = function() {
-  if (confirm('Reset programme to defaults? This will overwrite your current programme.')) {
-    Store.set('rulecoach_programme', getDefaultProgramme());
-    App.programme.render();
-  }
+App.programme.reset = async function() {
+  const ok = await App.modal.confirm({ title: 'Reset programme?', body: 'Replaces your current programme, including every weight the app has progressed, with the original default.', confirmLabel: 'Reset', danger: true });
+  if (!ok) return;
+  Store.set('rulecoach_programme', getDefaultProgramme());
+  App.programme.render();
 };
 
 // ---- SETTINGS ----
@@ -3219,10 +3222,11 @@ App.data.importData = function(event) {
   const file = event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const data = JSON.parse(e.target.result);
-      if (!confirm('This will overwrite your current data with the imported backup. Continue?')) return;
+      const ok = await App.modal.confirm({ title: 'Import this backup?', body: 'Overwrites your current programme, sessions and bodyweight log with the file.', confirmLabel: 'Import', danger: true });
+      if (!ok) return;
       if (data.programme) Store.set('rulecoach_programme', data.programme);
       if (data.sessions_benn) Store.set('rulecoach_sessions_benn', data.sessions_benn);
       if (data.sessions_bonny) Store.set('rulecoach_sessions_bonny', data.sessions_bonny);
@@ -3230,29 +3234,27 @@ App.data.importData = function(event) {
       if (data.bodyweight) Store.set('rulecoach_bodyweight', data.bodyweight);
       App.init();
       App.nav('settings');
-      alert('Data imported successfully!');
+      App.modal.alert('Imported', 'Your data has been restored from the backup.');
     } catch (err) {
-      alert('Invalid backup file: ' + err.message);
+      App.modal.alert('Invalid backup file', err.message);
     }
   };
   reader.readAsText(file);
   event.target.value = '';
 };
 
-App.data.clearData = function() {
-  if (confirm('This will permanently delete ALL your training data. Are you sure?')) {
-    if (confirm('Really? This cannot be undone.')) {
-      localStorage.removeItem('rulecoach_programme');
-      localStorage.removeItem('rulecoach_sessions_benn');
-      localStorage.removeItem('rulecoach_sessions_bonny');
-      localStorage.removeItem('rulecoach_bonny_week');
-      localStorage.removeItem('rulecoach_active_session');
-      localStorage.removeItem('rulecoach_bodyweight');
-      App.activeSession = null;
-      App.init();
-      App.nav('today');
-    }
-  }
+App.data.clearData = async function() {
+  const ok = await App.modal.confirm({ title: 'Delete all training data?', body: 'Every session, your programme and your bodyweight log on this phone. This cannot be undone. Export a backup first if you are unsure.', confirmLabel: 'Delete everything', danger: true });
+  if (!ok) return;
+  localStorage.removeItem('rulecoach_programme');
+  localStorage.removeItem('rulecoach_sessions_benn');
+  localStorage.removeItem('rulecoach_sessions_bonny');
+  localStorage.removeItem('rulecoach_bonny_week');
+  localStorage.removeItem('rulecoach_active_session');
+  localStorage.removeItem('rulecoach_bodyweight');
+  App.activeSession = null;
+  App.init();
+  App.nav('today');
 };
 
 // ---- MODAL ----
@@ -3404,8 +3406,36 @@ App.modal.close = function(e) {
   if (e && (e.target === overlay || e.target === scrim)) App.modal.forceClose();
 };
 
+// Confirmation as a sheet, anchored to the bottom like everything else.
+// Resolves false if the sheet is swiped or tapped away.
+App.modal.confirm = function({ title, body = '', confirmLabel = 'Confirm', cancelLabel = 'Cancel', danger = false }) {
+  return new Promise(resolve => {
+    App.modal._pending = resolve;
+    App.modal.open(`<h2>${esc(title)}</h2>
+      ${body ? `<p style="color:var(--text-dim);font-size:14px;line-height:1.5;margin:0 0 18px;">${esc(body)}</p>` : ''}
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-outline" style="flex:1" onclick="App.modal._answer(false)">${esc(cancelLabel)}</button>
+        <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" style="flex:1" onclick="App.modal._answer(true)">${esc(confirmLabel)}</button>
+      </div>`);
+  });
+};
+App.modal.alert = function(title, body = '') {
+  return new Promise(resolve => {
+    App.modal._pending = resolve;
+    App.modal.open(`<h2>${esc(title)}</h2>
+      ${body ? `<p style="color:var(--text-dim);font-size:14px;line-height:1.5;margin:0 0 18px;">${esc(body)}</p>` : ''}
+      <button class="btn btn-primary btn-block" onclick="App.modal._answer(true)">OK</button>`);
+  });
+};
+App.modal._answer = function(v) {
+  const r = App.modal._pending; App.modal._pending = null;
+  App.modal.forceClose();
+  if (r) r(v);
+};
+
 App.modal.forceClose = function(velocity) {
   App.modal._ensure();
+  if (App.modal._pending) { const r = App.modal._pending; App.modal._pending = null; r(false); }
   const { overlay, sheet } = App.modal._els();
   // Stop any playing videos (iframes)
   overlay.querySelectorAll('iframe').forEach(f => { f.src = ''; });
