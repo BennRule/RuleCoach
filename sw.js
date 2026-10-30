@@ -1,4 +1,4 @@
-const CACHE_NAME = 'rulecoach-v51';
+const CACHE_NAME = 'rulecoach-v52';
 
 // Force activate when told to skip waiting
 self.addEventListener('message', e => {
@@ -65,4 +65,23 @@ self.addEventListener('fetch', e => {
       }))
     );
   }
+});
+
+// Web Push from the rest-alert server: show it even when the app is frozen
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Rest complete', {
+    body: d.body || 'Time for the next set',
+    tag: d.tag || 'rulecoach-rest',
+    renotify: true
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) { if ('focus' in c) return c.focus(); }
+    return clients.openWindow('./');
+  }));
 });

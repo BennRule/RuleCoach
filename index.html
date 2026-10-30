@@ -84,6 +84,11 @@
         <div id="bwHistory" style="margin-top:12px;font-size:13px;color:var(--text-dim);"></div>
       </div>
       <div class="settings-section">
+        <h3>Background Rest Alerts</h3>
+        <div id="pushStatus" style="font-size:13px;color:var(--text-dim);margin-bottom:12px;"></div>
+        <button class="btn btn-outline btn-block" id="pushToggle" onclick="App.settings.togglePush()">Turn On Background Alerts</button>
+      </div>
+      <div class="settings-section">
         <h3>Apple Watch</h3>
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px;">One tap on the wrist marks the next set done and starts the rest timer.</div>
         <button class="btn btn-outline btn-block" onclick="App.settings.showWatchSetup()">Setup Instructions</button>

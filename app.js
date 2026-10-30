@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '25 Oct 2026, build 51';
+const APP_BUILD = '30 Oct 2026, build 52';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -261,6 +261,60 @@ const Sync = {
       el.className = '';
     }
   }
+};
+
+// ---- Background rest alerts (Web Push) ----
+// iOS freezes a home-screen web app in the background, so the in-app timer
+// cannot alert. A small Cloudflare Worker (push-worker/) fires a Web Push at
+// the rest's end time instead. Enabled from Settings; needs iOS 16.4+ and the
+// app on the home screen.
+const Push = {
+  URL: 'https://rulecoach-push.headcorn-manifest.workers.dev',
+  TOKEN: 'eWsqWc8FTYyxrlZY6ulBGchvkCNHzLgF',
+  supported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; },
+  enabled() { return localStorage.getItem('_rulecoach_push') === 'on'; },
+  async api(path, body) {
+    if (!Push.URL || Push.URL.startsWith('__')) return null;
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 6000);
+    try {
+      const res = await fetch(Push.URL + path, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-Token': Push.TOKEN }, body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
+      return await res.json();
+    } catch (e) { console.warn('Push api', path, e.message); return null; }
+    finally { clearTimeout(t); }
+  },
+  _key(b64u) {
+    const pad = '='.repeat((4 - b64u.length % 4) % 4);
+    const raw = atob((b64u + pad).replace(/-/g, '+').replace(/_/g, '/'));
+    return Uint8Array.from(raw, c => c.charCodeAt(0));
+  },
+  async enable() {
+    if (!Push.supported()) throw new Error('This device cannot receive push notifications. On iPhone the app must be added to the Home Screen (iOS 16.4 or later).');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications were not allowed. Enable them for Rule Coach in iPhone Settings and try again.');
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const v = await Push.api('/vapid');
+      if (!v || !v.publicKey) throw new Error('Could not reach the alert server.');
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Push._key(v.publicKey) });
+    }
+    const r = await Push.api('/subscribe', { subscription: sub.toJSON() });
+    if (!r || !r.ok) throw new Error('The alert server rejected the subscription.');
+    localStorage.setItem('_rulecoach_push', 'on');
+    return true;
+  },
+  async disable() {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) { await Push.api('/unsubscribe', { endpoint: sub.endpoint }); await sub.unsubscribe(); }
+    } catch (_) {}
+    localStorage.removeItem('_rulecoach_push');
+  },
+  // Fire 1.5 s after the in-app timer, so when the app is awake it cancels first
+  schedule(endTime, exercise) { if (Push.enabled()) Push.api('/rest', { endsAt: endTime + 1500, exercise }); },
+  cancel() { if (Push.enabled()) Push.api('/cancel', {}); },
+  test() { return Push.api('/test', {}); }
 };
 
 // ---- Apple Watch command channel ----
@@ -871,7 +925,7 @@ App.nav = function(screen) {
 
   if (screen === 'history') App.history.render();
   if (screen === 'programme') App.programme.render();
-  if (screen === 'settings') Sync.renderStatus();
+  if (screen === 'settings') { Sync.renderStatus(); App.settings.renderPush(); }
 };
 
 // ---- TODAY SCREEN ----
@@ -1914,6 +1968,7 @@ App.today.startGlobalRest = function(ei) {
   // Timestamp-based timer: survives tab being in background
   const endTime = Date.now() + total * 1000;
   const exerciseName = ex ? ex.name : 'Rest';
+  Push.schedule(endTime, exerciseName);
 
   bar.classList.add('visible', 'running');
   bar.classList.remove('ringing', 'warning');
@@ -1976,6 +2031,8 @@ App.today.startGlobalRest = function(ei) {
         });
       }
     } catch(e) {}
+
+    Push.cancel();   // app was awake for the end, no need for the background alert
 
     // Reset to idle after 5 seconds
     setTimeout(() => {
@@ -2041,6 +2098,7 @@ App.today.startGlobalRest = function(ei) {
 };
 
 App.today.stopGlobalRest = function() {
+  if (App.restTimer) Push.cancel();
   if (App.restTimer) {
     if (typeof App.restTimer.cleanup === 'function') App.restTimer.cleanup();
     else clearInterval(App.restTimer.interval);
@@ -3064,6 +3122,30 @@ App.settings.updateBonnyWeekButtons = function() {
   if (!btnA || !btnB) return;
   btnA.className = week === 'A' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
   btnB.className = week === 'B' ? 'btn btn-primary btn-block' : 'btn btn-outline btn-block';
+};
+
+App.settings.renderPush = function() {
+  const st = document.getElementById('pushStatus'), btn = document.getElementById('pushToggle');
+  if (!st || !btn) return;
+  if (!Push.supported()) { st.textContent = 'Not available in this browser. On iPhone, use the app from the Home Screen (iOS 16.4 or later).'; btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  if (Push.enabled()) { st.textContent = 'On. Your phone will buzz when a rest ends, even with the app in the background.'; st.style.color = 'var(--green)'; btn.textContent = 'Turn Off'; }
+  else { st.textContent = 'Off. The in-app timer only alerts while the app is open.'; st.style.color = 'var(--text-dim)'; btn.textContent = 'Turn On Background Alerts'; }
+};
+App.settings.togglePush = async function() {
+  const btn = document.getElementById('pushToggle');
+  btn.disabled = true;
+  try {
+    if (Push.enabled()) { await Push.disable(); }
+    else {
+      await Push.enable();
+      const t = await Push.test();
+      if (!t || !t.sent) App.modal.alert('Enabled, but the test alert was not sent', 'The subscription saved but the server reported no delivery. Try again in a minute.');
+      else App.modal.alert('Background alerts on', 'A test notification has been sent. If it did not appear, check iPhone Settings > Notifications > Rule Coach.');
+    }
+  } catch (e) { App.modal.alert('Could not enable alerts', e.message); }
+  btn.disabled = false;
+  App.settings.renderPush();
 };
 
 App.settings.showWatchSetup = function() {
