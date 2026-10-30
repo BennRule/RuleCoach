@@ -3,7 +3,7 @@
    ============================================================ */
 
 // Shown at the bottom of Settings so you can tell which build the phone is running
-const APP_BUILD = '25 Oct 2026, build 50';
+const APP_BUILD = '25 Oct 2026, build 51';
 
 // ---- Service Worker Registration (force update) ----
 if ('serviceWorker' in navigator) {
@@ -1771,8 +1771,6 @@ App.today.markSet = function(ei, si, status) {
   if (wInput) s.actualWeight = parseFloat(wInput.value) || 0;
   if (rInput) s.actualReps = parseInt(rInput.value) || 0;
 
-  const wasNull = s.status === null;
-
   // Toggle: if tapping the same status, undo it
   if (s.status === status) {
     s.status = null;
@@ -1786,9 +1784,14 @@ App.today.markSet = function(ei, si, status) {
   // Re-render the card area
   App.today.renderActiveSession(document.getElementById('todayContent'));
 
-  // Auto-start rest timer only when transitioning from null to done/failed
-  if (wasNull && (s.status === 'done' || s.status === 'failed')) {
+  // Auto-start the rest timer whenever a set is marked done or failed, from
+  // any previous state (unmarked, skipped, or re-ticked after an undo)
+  if (s.status === 'done' || s.status === 'failed') {
     App.today.toggleRest(ei);
+    if (!App.restTimer) {
+      // Belt and braces: if the bar failed to start for any reason, try once more on the next frame
+      requestAnimationFrame(() => { if (!App.restTimer && App.activeSession) App.today.toggleRest(ei); });
+    }
   }
 };
 
